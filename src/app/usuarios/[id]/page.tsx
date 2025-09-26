@@ -1,302 +1,544 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import Sidebar from "../../components/Sidebar";
+import type React from "react"
+
+import { useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import Sidebar from "../../components/Sidebar"
 
 interface Usuario {
-    id: string;
-    nome: string;
-    login: string;
-    roles: string[];
+    id: string
+    nome: string
+    login: string
+    roles: string[]
 }
 
 const ROLES = [
-    { value: "ADMIN", label: "Administrador" },
-    { value: "PROF_COMP", label: "Professor de Computação" },
-    { value: "PROF", label: "Professor" },
-    { value: "FUNCIONARIO", label: "Funcionário" },
-    { value: "ALUNO", label: "Aluno" },
-];
+    { value: "ADMIN", label: "Administrador", color: "bg-gradient-to-r from-red-500 to-pink-500" },
+    { value: "PROF_COMP", label: "Professor de Computação", color: "bg-gradient-to-r from-blue-500 to-cyan-500" },
+    { value: "PROF", label: "Professor", color: "bg-gradient-to-r from-green-500 to-emerald-500" },
+    { value: "FUNCIONARIO", label: "Funcionário", color: "bg-gradient-to-r from-yellow-500 to-orange-500" },
+    { value: "ALUNO", label: "Aluno", color: "bg-gradient-to-r from-purple-500 to-violet-500" },
+]
 
-type Notificacao = { type: "success" | "error" | "info"; message: string } | null;
+type Notificacao = { type: "success" | "error" | "info"; message: string } | null
 
 export default function UsuarioPage() {
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [usuario, setUsuario] = useState<Usuario | null>(null);
-    const [originalUsuario, setOriginalUsuario] = useState<Usuario | null>(null);
-    const [roleSelecionada, setRoleSelecionada] = useState<string>("");
-    const [senha, setSenha] = useState("");
-    const [notificacao, setNotificacao] = useState<Notificacao>(null);
-    const [loading, setLoading] = useState(true); // usado para carregar
-    const [saving, setSaving] = useState(false); // usado para atualizar
-    const [editando, setEditando] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false)
+    const [usuario, setUsuario] = useState<Usuario | null>(null)
+    const [originalUsuario, setOriginalUsuario] = useState<Usuario | null>(null)
+    const [roleSelecionada, setRoleSelecionada] = useState<string>("")
+    const [senha, setSenha] = useState("")
+    const [notificacao, setNotificacao] = useState<Notificacao>(null)
+    const [loading, setLoading] = useState(true)
+    const [saving, setSaving] = useState(false)
+    const [editando, setEditando] = useState(false)
 
-    const router = useRouter();
-    const params = useParams();
-    const id = (params as any)?.id as string | undefined;
+    const router = useRouter()
+    const params = useParams()
+    const id = (params as any)?.id as string | undefined
 
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
 
-    // Classe padrão para inputs (força contraste)
-    const INPUT_CLASS =
-        "w-full px-4 py-2 border rounded-lg bg-white text-gray-900 placeholder-gray-500 border-gray-300 shadow-sm " +
-        "focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition";
-
-    // Proteção de rota
     useEffect(() => {
-        if (!token) router.push("/login");
-    }, [router, token]);
+        if (!token) router.push("/login")
+    }, [router, token])
 
-    // Buscar usuário
     useEffect(() => {
-        if (!id || !token) return;
-        let mounted = true;
+        if (!id || !token) return
+        let mounted = true
         const fetchUsuario = async () => {
-            setLoading(true);
+            setLoading(true)
             try {
                 const res = await fetch(`http://localhost:8080/usuarios/${id}`, {
                     headers: { Authorization: `Bearer ${token}` },
-                });
-                if (!res.ok) throw new Error("Erro ao buscar usuário");
-                const data = await res.json();
-                if (!mounted) return;
-                setUsuario(data);
-                setOriginalUsuario(data);
-                setRoleSelecionada(data.roles?.[0] || "");
+                })
+                if (!res.ok) throw new Error("Erro ao buscar usuário")
+                const data = await res.json()
+                if (!mounted) return
+                setUsuario(data)
+                setOriginalUsuario(data)
+                setRoleSelecionada(data.roles?.[0] || "")
             } catch (error) {
-                console.error(error);
-                setNotificacao({ type: "error", message: "Falha ao carregar usuário." });
+                console.error(error)
+                setNotificacao({ type: "error", message: "Falha ao carregar usuário." })
             } finally {
-                if (mounted) setLoading(false);
+                if (mounted) setLoading(false)
             }
-        };
+        }
 
-        fetchUsuario();
+        fetchUsuario()
         return () => {
-            mounted = false;
-        };
-    }, [id, token]);
+            mounted = false
+        }
+    }, [id, token])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!usuario) return;
-        setUsuario({ ...usuario, [e.target.name]: e.target.value } as Usuario);
-    };
+        if (!usuario) return
+        setUsuario({ ...usuario, [e.target.name]: e.target.value } as Usuario)
+    }
 
-    const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => setRoleSelecionada(e.target.value);
-    const handleSenhaChange = (e: React.ChangeEvent<HTMLInputElement>) => setSenha(e.target.value);
+    const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => setRoleSelecionada(e.target.value)
+    const handleSenhaChange = (e: React.ChangeEvent<HTMLInputElement>) => setSenha(e.target.value)
 
     const validate = () => {
-        if (!usuario) return false;
+        if (!usuario) return false
         if (!usuario.nome || !usuario.nome.trim()) {
-            setNotificacao({ type: "error", message: "Nome é obrigatório." });
-            return false;
+            setNotificacao({ type: "error", message: "Nome é obrigatório." })
+            return false
         }
         if (senha && senha.length > 0 && senha.length < 6) {
-            setNotificacao({ type: "error", message: "A nova senha precisa ter ao menos 6 caracteres." });
-            return false;
+            setNotificacao({ type: "error", message: "A nova senha precisa ter ao menos 6 caracteres." })
+            return false
         }
-        return true;
-    };
+        return true
+    }
 
     const handleAtualizar = async () => {
-        if (!usuario || !token) return;
-        setNotificacao(null);
-        if (!validate()) return;
+        if (!usuario || !token) return
+        setNotificacao(null)
+        if (!validate()) return
 
-        setSaving(true);
+        setSaving(true)
         try {
-            const body: { nome?: string; senha?: string; roles?: string[] } = {};
-            body.nome = usuario.nome;
-            if (senha) body.senha = senha;
-            body.roles = [roleSelecionada];
+            const body: { nome?: string; senha?: string; roles?: string[] } = {}
+            body.nome = usuario.nome
+            if (senha) body.senha = senha
+            body.roles = [roleSelecionada]
 
             const res = await fetch(`http://localhost:8080/usuarios?id=${usuario.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify(body),
-            });
+            })
 
             if (res.ok) {
-                setNotificacao({ type: "success", message: "Usuário atualizado com sucesso!" });
-                setEditando(false);
-                setSenha("");
-                setOriginalUsuario({ ...usuario, roles: [roleSelecionada] });
+                setNotificacao({ type: "success", message: "Usuário atualizado com sucesso!" })
+                setEditando(false)
+                setSenha("")
+                setOriginalUsuario({ ...usuario, roles: [roleSelecionada] })
             } else {
-                const data = await res.json().catch(() => ({}));
-                setNotificacao({ type: "error", message: data.mensagem || data.message || "Erro ao atualizar usuário." });
+                const data = await res.json().catch(() => ({}))
+                setNotificacao({ type: "error", message: data.mensagem || data.message || "Erro ao atualizar usuário." })
             }
         } catch (error) {
-            console.error(error);
-            setNotificacao({ type: "error", message: "Falha na conexão com o servidor." });
+            console.error(error)
+            setNotificacao({ type: "error", message: "Falha na conexão com o servidor." })
         } finally {
-            setSaving(false);
+            setSaving(false)
         }
-    };
+    }
 
     const handleCancelar = () => {
         if (originalUsuario) {
-            setUsuario(originalUsuario);
-            setRoleSelecionada(originalUsuario.roles?.[0] || "");
+            setUsuario(originalUsuario)
+            setRoleSelecionada(originalUsuario.roles?.[0] || "")
         }
-        setSenha("");
-        setEditando(false);
-        setNotificacao(null);
-    };
+        setSenha("")
+        setEditando(false)
+        setNotificacao(null)
+    }
 
-    if (loading)
+    const getRoleConfig = (role: string) => {
+        return ROLES.find((r) => r.value === role) || ROLES[4]
+    }
+
+    if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center">
-                <div className="text-center p-6">
-                    <div className="animate-spin w-10 h-10 border-4 border-indigo-300 border-t-indigo-600 rounded-full mx-auto mb-4" />
-                    <div className="text-gray-700">Carregando usuário...</div>
+            <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100">
+                <div className="text-center p-8 bg-white/70 backdrop-blur-lg rounded-3xl shadow-2xl max-w-sm w-full mx-4 border border-white/20">
+                    <div className="relative mb-6">
+                        <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-r from-violet-500 to-purple-600 animate-pulse"></div>
+                        <div className="w-8 h-8 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                        </div>
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-800 mb-2">Carregando usuário</h2>
+                    <p className="text-sm text-gray-600">Aguarde um momento...</p>
+                    <div className="mt-4 w-full bg-gray-200 rounded-full h-1">
+                        <div
+                            className="bg-gradient-to-r from-violet-500 to-purple-600 h-1 rounded-full animate-pulse"
+                            style={{ width: "60%" }}
+                        ></div>
+                    </div>
                 </div>
             </div>
-        );
+        )
+    }
 
-    if (!usuario)
+    if (!usuario) {
         return (
-            <div className="p-8 text-center text-red-500">Usuário não encontrado ou erro ao carregar.</div>
-        );
+            <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100 p-4">
+                <div className="w-full max-w-md bg-white/70 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20">
+                    <div className="p-8 text-center">
+                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                                />
+                            </svg>
+                        </div>
+                        <h2 className="text-xl font-semibold text-gray-800 mb-2">Usuário não encontrado</h2>
+                        <p className="text-gray-600 mb-4">Erro ao carregar os dados do usuário.</p>
+                        <button
+                            onClick={() => router.back()}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                        >
+                            Voltar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     return (
-        <div className="flex min-h-screen font-sans bg-gradient-to-b from-gray-50 to-white">
+        <div className="flex min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100">
             <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+
             <div className="flex-1 flex flex-col min-h-screen">
-                <header className="p-3 sm:p-4 bg-white md:hidden flex items-center shadow-sm sticky top-0 z-10">
-                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-blue-700 hover:text-blue-900 transition-colors px-2 py-1 rounded">
-                        ☰
+                <header className="p-4 bg-white/70 backdrop-blur-lg md:hidden flex items-center shadow-lg sticky top-0 z-10 border-b border-white/20">
+                    <button
+                        onClick={() => setSidebarOpen(!sidebarOpen)}
+                        className="text-violet-600 hover:text-violet-700 hover:bg-violet-50 p-2 rounded-xl transition-colors"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
                     </button>
-                    <h1 className="ml-3 font-bold text-base sm:text-lg text-gray-700">Sistema de Reservas</h1>
+                    <h1 className="ml-3 font-bold text-lg text-gray-800">Sistema de Reservas</h1>
                 </header>
 
-                <main className="flex-1 p-4 sm:p-8 flex justify-center items-start py-8">
-                    <div className="bg-white shadow-xl rounded-2xl w-full max-w-full sm:max-w-2xl p-6 sm:p-8">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-                            <div>
-                                <h1 className="text-lg sm:text-2xl font-bold text-gray-800">{editando ? "Editar Usuário" : "Visualizar Usuário"}</h1>
-                                <p className="text-xs sm:text-sm text-gray-500 mt-1">ID: <span className="font-mono text-xs text-gray-600">{usuario.id}</span></p>
+                <main className="flex-1 p-4 lg:p-8 xl:p-12">
+                    <div className="max-w-5xl mx-auto space-y-8">
+                        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 p-6 bg-white/70 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20">
+                            <div className="flex items-center gap-6">
+                                <div className="relative">
+                                    <div className="w-20 h-20 border-4 border-violet-200 shadow-lg rounded-full bg-gradient-to-r from-violet-500 to-purple-600 flex items-center justify-center">
+                                        <span className="text-white text-2xl font-bold">
+                                            {usuario.nome
+                                                ?.split(" ")
+                                                .map((p) => p[0])
+                                                .slice(0, 2)
+                                                .join("") || "UU"}
+                                        </span>
+                                    </div>
+                                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-2">
+                                        {editando ? "Editar Usuário" : "Perfil do Usuário"}
+                                    </h1>
+                                    <p className="text-gray-600 flex items-center gap-2">
+                                        <span>ID:</span>
+                                        <span className="font-mono text-sm bg-gray-100 px-3 py-1 rounded-lg border border-gray-200">
+                                            {usuario.id}
+                                        </span>
+                                    </p>
+                                </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <div className="text-sm text-gray-600 hidden sm:block">Grupos:</div>
-                                <div className="flex gap-2 flex-wrap">
-                                    {usuario.roles?.map((r) => (
-                                        <span key={r} className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">
-                                            {r}
+                            <div className="flex flex-wrap gap-2">
+                                {usuario.roles?.map((role) => {
+                                    const roleConfig = getRoleConfig(role)
+                                    return (
+                                        <span
+                                            key={role}
+                                            className={`${roleConfig.color} text-white px-4 py-2 text-sm font-medium shadow-lg rounded-full flex items-center gap-2`}
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                                                />
+                                            </svg>
+                                            {roleConfig.label}
                                         </span>
-                                    ))}
+                                    )
+                                })}
+                            </div>
+                        </div>
+
+                        {notificacao && (
+                            <div
+                                className={`p-4 rounded-lg border-l-4 shadow-lg ${notificacao.type === "success"
+                                    ? "border-l-green-500 bg-green-50 text-green-800"
+                                    : "border-l-red-500 bg-red-50 text-red-800"
+                                    }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    {notificacao.type === "success" ? (
+                                        <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                            />
+                                        </svg>
+                                    ) : (
+                                        <svg className="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                                            />
+                                        </svg>
+                                    )}
+                                    <span className="font-medium text-base">{notificacao.message}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="bg-white/70 backdrop-blur-lg border border-white/20 shadow-2xl rounded-2xl overflow-hidden">
+                            <div className="pb-6 bg-gradient-to-r from-violet-100 to-purple-100 border-b border-white/20 p-6">
+                                <h2 className="flex items-center gap-3 text-2xl font-bold text-gray-800">
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 flex items-center justify-center">
+                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                            />
+                                        </svg>
+                                    </div>
+                                    Informações do Usuário
+                                </h2>
+                            </div>
+                            <div className="p-8 space-y-8">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    <div className="space-y-3">
+                                        <label htmlFor="nome" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                                />
+                                            </svg>
+                                            Nome Completo
+                                        </label>
+                                        <input
+                                            id="nome"
+                                            name="nome"
+                                            value={usuario.nome}
+                                            onChange={handleChange}
+                                            disabled={!editando}
+                                            className={`w-full h-12 px-4 text-base rounded-lg border transition-all duration-300 ${!editando
+                                                ? "bg-gray-100 text-gray-500 border-gray-200"
+                                                : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
+                                                }`}
+                                            placeholder="Digite o nome completo"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <label htmlFor="login" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                                />
+                                            </svg>
+                                            Login
+                                        </label>
+                                        <input
+                                            id="login"
+                                            name="login"
+                                            value={usuario.login}
+                                            disabled
+                                            className="w-full h-12 px-4 text-base rounded-lg bg-gray-100 text-gray-500 border border-gray-200"
+                                        />
+                                        <p className="text-xs text-gray-500 flex items-center gap-1">
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                                                />
+                                            </svg>
+                                            O login não pode ser alterado
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <label htmlFor="senha" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                                                />
+                                            </svg>
+                                            Nova Senha
+                                        </label>
+                                        <input
+                                            id="senha"
+                                            type="password"
+                                            value={senha}
+                                            onChange={handleSenhaChange}
+                                            disabled={!editando}
+                                            className={`w-full h-12 px-4 text-base rounded-lg border transition-all duration-300 ${!editando
+                                                ? "bg-gray-100 text-gray-500 border-gray-200"
+                                                : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
+                                                }`}
+                                            placeholder="Digite a nova senha"
+                                        />
+                                        <p className="text-xs text-gray-500">
+                                            {editando ? "Deixe em branco para manter a senha atual" : "Senha protegida"}
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <label htmlFor="role" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                                                />
+                                            </svg>
+                                            Grupo de Acesso
+                                        </label>
+                                        <select
+                                            value={roleSelecionada}
+                                            onChange={handleRoleChange}
+                                            disabled={!editando}
+                                            className={`w-full h-12 px-4 text-base rounded-lg border transition-all duration-300 ${!editando
+                                                ? "bg-gray-100 text-gray-500 border-gray-200"
+                                                : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
+                                                }`}
+                                        >
+                                            <option value="">Selecione um grupo</option>
+                                            {ROLES.map((role) => (
+                                                <option key={role.value} value={role.value}>
+                                                    {role.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row gap-4 pt-8 border-t border-gray-200">
+                                    {!editando ? (
+                                        <button
+                                            onClick={() => {
+                                                setEditando(true)
+                                                setNotificacao(null)
+                                            }}
+                                            className="bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 transition-all duration-300 flex items-center justify-center gap-3 h-12 px-6 text-base font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 rounded-lg"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                />
+                                            </svg>
+                                            Editar Informações
+                                        </button>
+                                    ) : (
+                                        <>
+                                            <button
+                                                onClick={handleAtualizar}
+                                                disabled={saving}
+                                                className="bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 transition-all duration-300 flex items-center justify-center gap-3 flex-1 h-12 px-6 text-base font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none rounded-lg disabled:opacity-50"
+                                            >
+                                                {saving ? (
+                                                    <>
+                                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                                        Salvando...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                strokeWidth={2}
+                                                                d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12"
+                                                            />
+                                                        </svg>
+                                                        Salvar Alterações
+                                                    </>
+                                                )}
+                                            </button>
+                                            <button
+                                                onClick={handleCancelar}
+                                                disabled={saving}
+                                                className="border border-gray-300 hover:bg-gray-50 text-gray-700 flex items-center justify-center gap-3 flex-1 h-12 px-6 text-base font-semibold transition-all duration-300 hover:shadow-md rounded-lg disabled:opacity-50"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                                Cancelar
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
 
-                        <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
-                                <input
-                                    type="text"
-                                    name="nome"
-                                    value={usuario.nome}
-                                    onChange={handleChange}
-                                    disabled={!editando}
-                                    className={`${INPUT_CLASS} ${!editando ? "bg-gray-50" : "bg-white"}`}
-                                />
+                        <div className="bg-white/70 backdrop-blur-lg border border-white/20 shadow-xl rounded-2xl">
+                            <div className="bg-gradient-to-r from-purple-100 to-violet-100 border-b border-white/20 p-6">
+                                <h3 className="text-xl font-bold flex items-center gap-3 text-gray-800">
+                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 flex items-center justify-center">
+                                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                            />
+                                        </svg>
+                                    </div>
+                                    Pré-visualização do Perfil
+                                </h3>
                             </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Login</label>
-                                <input type="text" name="login" value={usuario.login} disabled className={`${INPUT_CLASS} bg-gray-50`} />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Senha (nova)</label>
-                                <input
-                                    type="password"
-                                    value={senha}
-                                    onChange={handleSenhaChange}
-                                    disabled={!editando}
-                                    placeholder="Digite a nova senha"
-                                    className={`${INPUT_CLASS} ${!editando ? "bg-gray-50" : "bg-white"}`}
-                                />
-                                <div className="text-xs text-gray-500 mt-2">Deixe em branco para manter a senha atual.</div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Grupo</label>
-                                <select
-                                    name="roles"
-                                    value={roleSelecionada}
-                                    onChange={handleRoleChange}
-                                    disabled={!editando}
-                                    className={`${INPUT_CLASS} ${!editando ? "bg-gray-50" : "bg-white"}`}
-                                >
-                                    {ROLES.map((r) => (
-                                        <option key={r.value} value={r.value}>
-                                            {r.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* ações - responsivas: coluna no mobile, linha no desktop */}
-                            {!editando && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setEditando(true);
-                                        setNotificacao(null);
-                                    }}
-                                    className="w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors"
-                                >
-                                    Liberar edição
-                                </button>
-                            )}
-
-                            {editando && (
-                                <div className="flex flex-col sm:flex-row gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={handleAtualizar}
-                                        disabled={saving}
-                                        className={`w-full sm:flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors ${saving ? "opacity-70 cursor-wait" : ""
-                                            }`}
-                                    >
-                                        {saving ? "Atualizando..." : "Atualizar"}
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={handleCancelar}
-                                        disabled={saving}
-                                        className="w-full sm:flex-1 bg-gray-400 text-white py-2 px-4 rounded-lg font-semibold hover:bg-gray-500 transition-colors"
-                                    >
-                                        Cancelar
-                                    </button>
-                                </div>
-                            )}
-                        </form>
-
-                        {notificacao && (
-                            <div className={`mt-6 p-4 rounded-lg text-sm font-medium ${notificacao.type === "success" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}>
-                                {notificacao.message}
-                            </div>
-                        )}
-
-                        {/* preview — fica abaixo do formulário no mobile e ao lado em telas maiores */}
-                        <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
-                            <div className="col-span-1 sm:col-span-1">
-                                <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center font-semibold text-indigo-700 mx-auto sm:mx-0">
-                                    {usuario.nome?.split(" ").map((p) => p[0]).slice(0, 2).join("") || "UU"}
-                                </div>
-                            </div>
-
-                            <div className="col-span-2 sm:col-span-2 text-center sm:text-left">
-                                <div className="font-medium text-gray-800">Pré-visualização</div>
-                                <div className="text-gray-500 text-sm">
-                                    Nome: <span className="font-medium text-gray-700">{usuario.nome || "—"}</span>
-                                    <span className="mx-2 hidden sm:inline">·</span>
-                                    <br className="sm:hidden" />
-                                    Login: <span className="font-medium text-gray-700">{usuario.login || "—"}</span>
+                            <div className="p-6">
+                                <div className="flex items-center gap-6 p-6 bg-gradient-to-r from-gray-50 via-purple-50 to-violet-50 rounded-xl border border-gray-200">
+                                    <div className="w-16 h-16 border-3 border-violet-200 shadow-lg rounded-full bg-gradient-to-r from-purple-500 to-violet-600 flex items-center justify-center">
+                                        <span className="text-white font-bold text-lg">
+                                            {usuario.nome
+                                                ?.split(" ")
+                                                .map((p) => p[0])
+                                                .slice(0, 2)
+                                                .join("") || "UU"}
+                                        </span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-xl text-gray-800 mb-1">{usuario.nome || "Nome não definido"}</h4>
+                                        <p className="text-base text-gray-600 mb-3">@{usuario.login}</p>
+                                        <div className="flex flex-wrap gap-2">
+                                            {usuario.roles?.map((role) => {
+                                                const roleConfig = getRoleConfig(role)
+                                                return (
+                                                    <span
+                                                        key={role}
+                                                        className="bg-gray-200 text-gray-700 text-sm px-3 py-1 font-medium rounded-full"
+                                                    >
+                                                        {roleConfig.label}
+                                                    </span>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -304,5 +546,5 @@ export default function UsuarioPage() {
                 </main>
             </div>
         </div>
-    );
+    )
 }
