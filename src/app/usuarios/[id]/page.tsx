@@ -212,13 +212,13 @@ export default function UsuarioPage() {
                     <h1 className="ml-3 font-bold text-lg text-gray-800">Sistema de Reservas</h1>
                 </header>
 
-                <main className="flex-1 p-4 lg:p-8 xl:p-12">
+                <main className="flex-1 p-4 lg:p-8 xl:p-12 overflow-x-hidden">
                     <div className="max-w-5xl mx-auto space-y-8">
-                        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 p-6 bg-white/70 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20">
-                            <div className="flex items-center gap-6">
-                                <div className="relative">
-                                    <div className="w-20 h-20 border-4 border-violet-200 shadow-lg rounded-full bg-gradient-to-r from-violet-500 to-purple-600 flex items-center justify-center">
-                                        <span className="text-white text-2xl font-bold">
+                        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 p-4 sm:p-6 bg-white/70 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 w-full lg:w-auto">
+                                <div className="relative flex-shrink-0">
+                                    <div className="w-16 h-16 sm:w-20 sm:h-20 border-4 border-violet-200 shadow-lg rounded-full bg-gradient-to-r from-violet-500 to-purple-600 flex items-center justify-center">
+                                        <span className="text-white text-lg sm:text-2xl font-bold">
                                             {usuario.nome
                                                 ?.split(" ")
                                                 .map((p) => p[0])
@@ -230,28 +230,33 @@ export default function UsuarioPage() {
                                         <div className="w-2 h-2 bg-white rounded-full"></div>
                                     </div>
                                 </div>
-                                <div>
-                                    <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-2">
+                                <div className="min-w-0 flex-1">
+                                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800 mb-2 break-words">
                                         {editando ? "Editar Usuário" : "Perfil do Usuário"}
                                     </h1>
-                                    <p className="text-gray-600 flex items-center gap-2">
+                                    <p className="text-gray-600 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                                         <span>ID:</span>
-                                        <span className="font-mono text-sm bg-gray-100 px-3 py-1 rounded-lg border border-gray-200">
+                                        <span className="font-mono text-sm bg-gray-100 px-3 py-1 rounded-lg border border-gray-200 break-all">
                                             {usuario.id}
                                         </span>
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2 w-full lg:w-auto justify-start lg:justify-end">
                                 {usuario.roles?.map((role) => {
                                     const roleConfig = getRoleConfig(role)
                                     return (
                                         <span
                                             key={role}
-                                            className={`${roleConfig.color} text-white px-4 py-2 text-sm font-medium shadow-lg rounded-full flex items-center gap-2`}
+                                            className={`${roleConfig.color} text-white px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium shadow-lg rounded-full flex items-center gap-2 break-words`}
                                         >
-                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg
+                                                className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
@@ -259,7 +264,7 @@ export default function UsuarioPage() {
                                                     d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
                                                 />
                                             </svg>
-                                            {roleConfig.label}
+                                            <span className="truncate">{roleConfig.label}</span>
                                         </span>
                                     )
                                 })}
@@ -269,8 +274,8 @@ export default function UsuarioPage() {
                         {notificacao && (
                             <div
                                 className={`p-4 rounded-lg border-l-4 shadow-lg ${notificacao.type === "success"
-                                    ? "border-l-green-500 bg-green-50 text-green-800"
-                                    : "border-l-red-500 bg-red-50 text-red-800"
+                                        ? "border-l-green-500 bg-green-50 text-green-800"
+                                        : "border-l-red-500 bg-red-50 text-red-800"
                                     }`}
                             >
                                 <div className="flex items-center gap-3">
@@ -299,10 +304,15 @@ export default function UsuarioPage() {
                         )}
 
                         <div className="bg-white/70 backdrop-blur-lg border border-white/20 shadow-2xl rounded-2xl overflow-hidden">
-                            <div className="pb-6 bg-gradient-to-r from-violet-100 to-purple-100 border-b border-white/20 p-6">
-                                <h2 className="flex items-center gap-3 text-2xl font-bold text-gray-800">
-                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 flex items-center justify-center">
-                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="pb-6 bg-gradient-to-r from-violet-100 to-purple-100 border-b border-white/20 p-4 sm:p-6">
+                                <h2 className="flex items-center gap-3 text-xl sm:text-2xl font-bold text-gray-800">
+                                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                                        <svg
+                                            className="w-4 h-4 sm:w-5 sm:h-5 text-white"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
                                             <path
                                                 strokeLinecap="round"
                                                 strokeLinejoin="round"
@@ -311,14 +321,19 @@ export default function UsuarioPage() {
                                             />
                                         </svg>
                                     </div>
-                                    Informações do Usuário
+                                    <span className="break-words">Informações do Usuário</span>
                                 </h2>
                             </div>
-                            <div className="p-8 space-y-8">
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
                                     <div className="space-y-3">
                                         <label htmlFor="nome" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                            <svg className="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg
+                                                className="w-4 h-4 text-violet-600 flex-shrink-0"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
@@ -326,7 +341,7 @@ export default function UsuarioPage() {
                                                     d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                                                 />
                                             </svg>
-                                            Nome Completo
+                                            <span className="break-words">Nome Completo</span>
                                         </label>
                                         <input
                                             id="nome"
@@ -335,8 +350,8 @@ export default function UsuarioPage() {
                                             onChange={handleChange}
                                             disabled={!editando}
                                             className={`w-full h-12 px-4 text-base rounded-lg border transition-all duration-300 ${!editando
-                                                ? "bg-gray-100 text-gray-500 border-gray-200"
-                                                : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
+                                                    ? "bg-gray-100 text-gray-500 border-gray-200"
+                                                    : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
                                                 }`}
                                             placeholder="Digite o nome completo"
                                         />
@@ -344,7 +359,12 @@ export default function UsuarioPage() {
 
                                     <div className="space-y-3">
                                         <label htmlFor="login" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg
+                                                className="w-4 h-4 text-gray-400 flex-shrink-0"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
@@ -362,7 +382,7 @@ export default function UsuarioPage() {
                                             className="w-full h-12 px-4 text-base rounded-lg bg-gray-100 text-gray-500 border border-gray-200"
                                         />
                                         <p className="text-xs text-gray-500 flex items-center gap-1">
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
@@ -370,13 +390,18 @@ export default function UsuarioPage() {
                                                     d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                                                 />
                                             </svg>
-                                            O login não pode ser alterado
+                                            <span className="break-words">O login não pode ser alterado</span>
                                         </p>
                                     </div>
 
                                     <div className="space-y-3">
                                         <label htmlFor="senha" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                            <svg className="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg
+                                                className="w-4 h-4 text-violet-600 flex-shrink-0"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
@@ -384,7 +409,7 @@ export default function UsuarioPage() {
                                                     d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                                                 />
                                             </svg>
-                                            Nova Senha
+                                            <span className="break-words">Nova Senha</span>
                                         </label>
                                         <input
                                             id="senha"
@@ -393,19 +418,24 @@ export default function UsuarioPage() {
                                             onChange={handleSenhaChange}
                                             disabled={!editando}
                                             className={`w-full h-12 px-4 text-base rounded-lg border transition-all duration-300 ${!editando
-                                                ? "bg-gray-100 text-gray-500 border-gray-200"
-                                                : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
+                                                    ? "bg-gray-100 text-gray-500 border-gray-200"
+                                                    : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
                                                 }`}
                                             placeholder="Digite a nova senha"
                                         />
-                                        <p className="text-xs text-gray-500">
+                                        <p className="text-xs text-gray-500 break-words">
                                             {editando ? "Deixe em branco para manter a senha atual" : "Senha protegida"}
                                         </p>
                                     </div>
 
                                     <div className="space-y-3">
                                         <label htmlFor="role" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                            <svg className="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg
+                                                className="w-4 h-4 text-violet-600 flex-shrink-0"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
@@ -413,15 +443,15 @@ export default function UsuarioPage() {
                                                     d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
                                                 />
                                             </svg>
-                                            Grupo de Acesso
+                                            <span className="break-words">Grupo de Acesso</span>
                                         </label>
                                         <select
                                             value={roleSelecionada}
                                             onChange={handleRoleChange}
                                             disabled={!editando}
                                             className={`w-full h-12 px-4 text-base rounded-lg border transition-all duration-300 ${!editando
-                                                ? "bg-gray-100 text-gray-500 border-gray-200"
-                                                : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
+                                                    ? "bg-gray-100 text-gray-500 border-gray-200"
+                                                    : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
                                                 }`}
                                         >
                                             <option value="">Selecione um grupo</option>
@@ -434,16 +464,16 @@ export default function UsuarioPage() {
                                     </div>
                                 </div>
 
-                                <div className="flex flex-col sm:flex-row gap-4 pt-8 border-t border-gray-200">
+                                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-6 sm:pt-8 border-t border-gray-200">
                                     {!editando ? (
                                         <button
                                             onClick={() => {
                                                 setEditando(true)
                                                 setNotificacao(null)
                                             }}
-                                            className="bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 transition-all duration-300 flex items-center justify-center gap-3 h-12 px-6 text-base font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 rounded-lg"
+                                            className="bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 transition-all duration-300 flex items-center justify-center gap-3 h-12 px-6 text-base font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 rounded-lg w-full sm:w-auto"
                                         >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
@@ -451,7 +481,7 @@ export default function UsuarioPage() {
                                                     d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
                                                 />
                                             </svg>
-                                            Editar Informações
+                                            <span className="truncate">Editar Informações</span>
                                         </button>
                                     ) : (
                                         <>
@@ -462,12 +492,17 @@ export default function UsuarioPage() {
                                             >
                                                 {saving ? (
                                                     <>
-                                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                                        Salvando...
+                                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white flex-shrink-0"></div>
+                                                        <span className="truncate">Salvando...</span>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg
+                                                            className="w-5 h-5 flex-shrink-0"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                        >
                                                             <path
                                                                 strokeLinecap="round"
                                                                 strokeLinejoin="round"
@@ -475,7 +510,7 @@ export default function UsuarioPage() {
                                                                 d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12"
                                                             />
                                                         </svg>
-                                                        Salvar Alterações
+                                                        <span className="truncate">Salvar Alterações</span>
                                                     </>
                                                 )}
                                             </button>
@@ -484,10 +519,10 @@ export default function UsuarioPage() {
                                                 disabled={saving}
                                                 className="border border-gray-300 hover:bg-gray-50 text-gray-700 flex items-center justify-center gap-3 flex-1 h-12 px-6 text-base font-semibold transition-all duration-300 hover:shadow-md rounded-lg disabled:opacity-50"
                                             >
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
-                                                Cancelar
+                                                <span className="truncate">Cancelar</span>
                                             </button>
                                         </>
                                     )}
@@ -496,10 +531,15 @@ export default function UsuarioPage() {
                         </div>
 
                         <div className="bg-white/70 backdrop-blur-lg border border-white/20 shadow-xl rounded-2xl">
-                            <div className="bg-gradient-to-r from-purple-100 to-violet-100 border-b border-white/20 p-6">
-                                <h3 className="text-xl font-bold flex items-center gap-3 text-gray-800">
-                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 flex items-center justify-center">
-                                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="bg-gradient-to-r from-purple-100 to-violet-100 border-b border-white/20 p-4 sm:p-6">
+                                <h3 className="text-lg sm:text-xl font-bold flex items-center gap-3 text-gray-800">
+                                    <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 flex items-center justify-center flex-shrink-0">
+                                        <svg
+                                            className="w-3 h-3 sm:w-4 sm:h-4 text-white"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
                                             <path
                                                 strokeLinecap="round"
                                                 strokeLinejoin="round"
@@ -508,13 +548,13 @@ export default function UsuarioPage() {
                                             />
                                         </svg>
                                     </div>
-                                    Pré-visualização do Perfil
+                                    <span className="break-words">Pré-visualização do Perfil</span>
                                 </h3>
                             </div>
-                            <div className="p-6">
-                                <div className="flex items-center gap-6 p-6 bg-gradient-to-r from-gray-50 via-purple-50 to-violet-50 rounded-xl border border-gray-200">
-                                    <div className="w-16 h-16 border-3 border-violet-200 shadow-lg rounded-full bg-gradient-to-r from-purple-500 to-violet-600 flex items-center justify-center">
-                                        <span className="text-white font-bold text-lg">
+                            <div className="p-4 sm:p-6">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 p-4 sm:p-6 bg-gradient-to-r from-gray-50 via-purple-50 to-violet-50 rounded-xl border border-gray-200">
+                                    <div className="w-12 h-12 sm:w-16 sm:h-16 border-3 border-violet-200 shadow-lg rounded-full bg-gradient-to-r from-purple-500 to-violet-600 flex items-center justify-center flex-shrink-0">
+                                        <span className="text-white font-bold text-sm sm:text-lg">
                                             {usuario.nome
                                                 ?.split(" ")
                                                 .map((p) => p[0])
@@ -522,16 +562,18 @@ export default function UsuarioPage() {
                                                 .join("") || "UU"}
                                         </span>
                                     </div>
-                                    <div className="flex-1">
-                                        <h4 className="font-bold text-xl text-gray-800 mb-1">{usuario.nome || "Nome não definido"}</h4>
-                                        <p className="text-base text-gray-600 mb-3">@{usuario.login}</p>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-bold text-lg sm:text-xl text-gray-800 mb-1 break-words">
+                                            {usuario.nome || "Nome não definido"}
+                                        </h4>
+                                        <p className="text-sm sm:text-base text-gray-600 mb-3 break-all">@{usuario.login}</p>
                                         <div className="flex flex-wrap gap-2">
                                             {usuario.roles?.map((role) => {
                                                 const roleConfig = getRoleConfig(role)
                                                 return (
                                                     <span
                                                         key={role}
-                                                        className="bg-gray-200 text-gray-700 text-sm px-3 py-1 font-medium rounded-full"
+                                                        className="bg-gray-200 text-gray-700 text-xs sm:text-sm px-2 sm:px-3 py-1 font-medium rounded-full break-words"
                                                     >
                                                         {roleConfig.label}
                                                     </span>

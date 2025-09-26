@@ -1,22 +1,22 @@
 // components/Sidebar.tsx
-"use client";
+"use client"
 
-import { useState } from "react";
-import { FaUser, FaHome, FaDesktop } from "react-icons/fa";
-import { IoIosArrowDown } from "react-icons/io";
-import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
+import { useState } from "react"
+import { FaUser, FaHome, FaDesktop } from "react-icons/fa"
+import { IoIosArrowDown } from "react-icons/io"
+import Link from "next/link"
+import { useRouter, usePathname } from "next/navigation"
 
 interface SidebarProps {
-    sidebarOpen: boolean;
-    setSidebarOpen: (open: boolean) => void;
+    sidebarOpen: boolean
+    setSidebarOpen: (open: boolean) => void
 }
 
 export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
-    const [submenuUserOpen, setSubmenuUserOpen] = useState(false);
-    const [submenuLabOpen, setSubmenuLabOpen] = useState(false);
-    const router = useRouter();
-    const pathname = usePathname();
+    const [submenuUserOpen, setSubmenuUserOpen] = useState(false)
+    const [submenuLabOpen, setSubmenuLabOpen] = useState(false)
+    const router = useRouter()
+    const pathname = usePathname()
 
     return (
         <aside
@@ -27,26 +27,17 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
             {/* Topo mobile */}
             <div className="flex justify-between items-center mb-8 md:hidden z-50">
                 <h2 className="font-bold text-xl text-blue-700 flex items-center gap-2">
-                    <FaHome
-                        className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                        onClick={() => router.push("/")}
-                    />
+                    <FaHome className="text-blue-600 hover:text-blue-800 cursor-pointer" onClick={() => router.push("/")} />
                     Menu
                 </h2>
-                <button
-                    onClick={() => setSidebarOpen(false)}
-                    className="text-gray-600 hover:text-blue-700 transition-colors"
-                >
+                <button onClick={() => setSidebarOpen(false)} className="text-gray-600 hover:text-blue-700 transition-colors">
                     ×
                 </button>
             </div>
 
             {/* Topo desktop */}
             <div className="hidden md:flex items-center gap-2 mb-6 z-50">
-                <FaHome
-                    className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                    onClick={() => router.push("/")}
-                />
+                <FaHome className="text-blue-600 hover:text-blue-800 cursor-pointer" onClick={() => router.push("/")} />
                 <h2 className="font-bold text-xl text-blue-700">Menu</h2>
             </div>
 
@@ -70,9 +61,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
                     </button>
 
                     <div
-                        className={`grid transition-all duration-300 ease-in-out ${submenuUserOpen
-                                ? "grid-rows-[1fr] opacity-100 mt-2"
-                                : "grid-rows-[0fr] opacity-0"
+                        className={`grid transition-all duration-300 ease-in-out ${submenuUserOpen ? "grid-rows-[1fr] opacity-100 mt-2" : "grid-rows-[0fr] opacity-0"
                             }`}
                     >
                         <ul className="overflow-hidden ml-10 space-y-2">
@@ -123,9 +112,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
                     </button>
 
                     <div
-                        className={`grid transition-all duration-300 ease-in-out ${submenuLabOpen
-                                ? "grid-rows-[1fr] opacity-100 mt-2"
-                                : "grid-rows-[0fr] opacity-0"
+                        className={`grid transition-all duration-300 ease-in-out ${submenuLabOpen ? "grid-rows-[1fr] opacity-100 mt-2" : "grid-rows-[0fr] opacity-0"
                             }`}
                     >
                         <ul className="overflow-hidden ml-10 space-y-2">
@@ -158,5 +145,5 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
                 </li>
             </ul>
         </aside>
-    );
+    )
 }
