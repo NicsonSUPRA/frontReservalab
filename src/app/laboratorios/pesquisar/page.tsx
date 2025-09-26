@@ -1,85 +1,65 @@
-"use client"
+// app/(seu-path)/laboratorios/pesquisar/page.tsx
+"use client";
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import Sidebar from "../../components/Sidebar"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Sidebar from "../../components/Sidebar";
 
-interface Usuario {
-    id: string
-    nome: string
-    login: string
-    roles: string[]
+interface Laboratorio {
+    id: string;
+    nome: string;
 }
 
-const ROLES = [
-    { value: "ADMIN", label: "Administrador" },
-    { value: "PROF_COMP", label: "Professor de Computação" },
-    { value: "PROF", label: "Professor" },
-    { value: "FUNCIONARIO", label: "Funcionário" },
-    { value: "ALUNO", label: "Aluno" },
-]
+export default function PesquisarLaboratorios() {
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [laboratorios, setLaboratorios] = useState<Laboratorio[]>([]);
+    const [nome, setNome] = useState("");
+    const [notificacao, setNotificacao] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
 
-export default function PesquisarUsuarios() {
-    const [sidebarOpen, setSidebarOpen] = useState(false)
-    const [usuarios, setUsuarios] = useState<Usuario[]>([])
-    const [nome, setNome] = useState("")
-    const [login, setLogin] = useState("")
-    const [rolesSelecionadas, setRolesSelecionadas] = useState<string[]>([])
-    const [notificacao, setNotificacao] = useState<string | null>(null)
-    const [loading, setLoading] = useState(false)
-
-    const router = useRouter()
-    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
+    const router = useRouter();
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
     useEffect(() => {
-        if (!token) router.push("/login")
-    }, [router, token])
-
-    const toggleRole = (role: string) =>
-        setRolesSelecionadas((prev) =>
-            prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]
-        )
+        if (!token) router.push("/login");
+    }, [router, token]);
 
     const INPUT_CLASS =
         "w-full px-4 py-3 border rounded-lg bg-white text-gray-900 placeholder-gray-500 border-gray-200 shadow-sm " +
-        "focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition text-sm sm:text-base"
+        "focus:outline-none focus:ring-2 focus:ring-sky-400 focus:border-sky-400 transition text-sm sm:text-base";
 
     const handlePesquisar = async () => {
         if (!token) {
-            setNotificacao("Você precisa estar autenticado.")
-            return
+            setNotificacao("Você precisa estar autenticado.");
+            return;
         }
-        setLoading(true)
-        setNotificacao(null)
+        setLoading(true);
+        setNotificacao(null);
 
         try {
-            const params = new URLSearchParams()
-            if (nome) params.append("nome", nome)
-            if (login) params.append("login", login)
-            rolesSelecionadas.forEach((r) => params.append("roles", r))
+            const params = new URLSearchParams();
+            if (nome) params.append("nome", nome);
 
-            const res = await fetch(`http://localhost:8080/usuarios/pesquisar?${params.toString()}`, {
+            const res = await fetch(`http://localhost:8080/laboratorios/pesquisar?${params.toString()}`, {
                 headers: { Authorization: `Bearer ${token}` },
-            })
-            if (!res.ok) throw new Error("Erro ao buscar usuários")
-            const data: Usuario[] = await res.json()
-            setUsuarios(data)
-            if (data.length === 0) setNotificacao("Nenhum usuário encontrado com esses filtros.")
+            });
+            if (!res.ok) throw new Error("Erro ao buscar laboratórios");
+            const data: Laboratorio[] = await res.json();
+            setLaboratorios(data);
+            if (data.length === 0) setNotificacao("Nenhum laboratório encontrado com esse filtro.");
         } catch (err) {
-            console.error(err)
-            setNotificacao("Falha ao buscar usuários. Verifique o servidor.")
+            console.error(err);
+            setNotificacao("Falha ao buscar laboratórios. Verifique o servidor.");
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
     const clearFilters = () => {
-        setNome("")
-        setLogin("")
-        setRolesSelecionadas([])
-        setUsuarios([])
-        setNotificacao(null)
-    }
+        setNome("");
+        setLaboratorios([]);
+        setNotificacao(null);
+    };
 
     const initials = (name: string) =>
         (name || "")
@@ -87,19 +67,14 @@ export default function PesquisarUsuarios() {
             .map((part) => part[0] ?? "")
             .slice(0, 2)
             .join("")
-            .toUpperCase()
+            .toUpperCase();
 
     return (
         <div className="flex min-h-screen font-sans bg-gray-50">
-            {/* Sidebar drawer: desliza em mobile, fixo em md+ */}
-            <div
-                className={`fixed top-0 left-0 h-full w-64 z-50 transform transition-transform duration-300
-                    ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
-            >
-                <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-            </div>
+            {/* Sidebar (agora como filho do layout flex) */}
+            <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-            {/* Backdrop (fecha ao clicar) — apenas em mobile */}
+            {/* Backdrop só em mobile quando o sidebar está aberto */}
             {sidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black/30 z-40 md:hidden"
@@ -108,15 +83,15 @@ export default function PesquisarUsuarios() {
                 />
             )}
 
-            {/* Conteúdo principal deslocado em md+ para não ficar por baixo do sidebar */}
-            <div className="flex-1 flex flex-col min-h-screen md:pl-64">
+            {/* Conteúdo principal */}
+            <div className="flex-1 flex flex-col min-h-screen">
                 {/* Top gradient header */}
                 <div className="bg-gradient-to-r from-indigo-600 via-sky-500 to-indigo-500 text-white py-5 px-4 sm:px-6 flex items-center justify-between shadow-lg">
                     <div className="flex items-center gap-4">
-                        {/* toggle: agora abre/fecha corretamente */}
+                        {/* Toggle: aparece em telas menores */}
                         <button
                             onClick={() => setSidebarOpen(!sidebarOpen)}
-                            className="lg:hidden p-2 rounded-md bg-white/20 hover:bg-white/30 transition"
+                            className="md:hidden p-2 rounded-md bg-white/20 hover:bg-white/30 transition"
                             aria-label="Abrir menu"
                         >
                             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,8 +100,8 @@ export default function PesquisarUsuarios() {
                         </button>
 
                         <div>
-                            <h1 className="text-xl sm:text-2xl font-bold">Pesquisar Usuários</h1>
-                            <p className="text-sm text-indigo-100">Busque por nome, login ou grupo de usuários</p>
+                            <h1 className="text-xl sm:text-2xl font-bold">Pesquisar Laboratórios</h1>
+                            <p className="text-sm text-indigo-100">Busque por nome do laboratório</p>
                         </div>
                     </div>
 
@@ -137,7 +112,7 @@ export default function PesquisarUsuarios() {
                 </div>
 
                 <main className="flex-1 p-4 sm:p-6 md:p-8 w-full">
-                    <div className="max-w-6xl mx-auto space-y-6">
+                    <div className="max-w-4xl mx-auto space-y-6">
                         {/* Search card */}
                         <div className="bg-white rounded-2xl shadow-xl p-5 sm:p-6 border border-gray-100">
                             <div className="flex flex-col lg:flex-row gap-4 lg:items-end">
@@ -157,17 +132,6 @@ export default function PesquisarUsuarios() {
                                             placeholder="Pesquisar por nome..."
                                         />
                                     </div>
-                                </div>
-
-                                <div className="w-full lg:w-1/3">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Login</label>
-                                    <input
-                                        className={INPUT_CLASS}
-                                        type="text"
-                                        value={login}
-                                        onChange={(e) => setLogin(e.target.value)}
-                                        placeholder="Pesquisar por login..."
-                                    />
                                 </div>
 
                                 <div className="flex gap-2 lg:gap-3">
@@ -191,29 +155,6 @@ export default function PesquisarUsuarios() {
                                     </button>
                                 </div>
                             </div>
-
-                            {/* Roles */}
-                            <div className="mt-5">
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Grupos (selecione um ou mais)</label>
-                                <div className="flex gap-2 flex-wrap">
-                                    {ROLES.map((r) => {
-                                        const active = rolesSelecionadas.includes(r.value)
-                                        return (
-                                            <button
-                                                key={r.value}
-                                                type="button"
-                                                onClick={() => toggleRole(r.value)}
-                                                className={`px-3 py-1.5 rounded-full text-sm transition-shadow transition-colors border ${active
-                                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-md"
-                                                    : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
-                                                    }`}
-                                            >
-                                                {r.label}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            </div>
                         </div>
 
                         {/* Results card */}
@@ -221,7 +162,7 @@ export default function PesquisarUsuarios() {
                             <div className="flex justify-between items-center mb-4">
                                 <div>
                                     <h2 className="text-lg font-semibold text-gray-800">Resultados</h2>
-                                    <p className="text-sm text-gray-500">{usuarios.length} usuário(s)</p>
+                                    <p className="text-sm text-gray-500">{laboratorios.length} laboratório(s)</p>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     {loading && (
@@ -233,8 +174,8 @@ export default function PesquisarUsuarios() {
 
                                     <button
                                         onClick={() => {
-                                            setUsuarios([])
-                                            setNotificacao(null)
+                                            setLaboratorios([]);
+                                            setNotificacao(null);
                                         }}
                                         className="hidden sm:inline-block px-3 py-2 rounded-lg bg-white border border-gray-200 text-gray-700 hover:shadow-sm"
                                     >
@@ -243,16 +184,14 @@ export default function PesquisarUsuarios() {
                                 </div>
                             </div>
 
-                            {notificacao && (
-                                <div className="mb-4 p-3 rounded-lg bg-yellow-50 text-yellow-800 text-sm">{notificacao}</div>
-                            )}
+                            {notificacao && <div className="mb-4 p-3 rounded-lg bg-yellow-50 text-yellow-800 text-sm">{notificacao}</div>}
 
                             {loading ? (
                                 <div className="py-8 text-center text-gray-400">Aguarde...</div>
-                            ) : usuarios.length === 0 ? (
+                            ) : laboratorios.length === 0 ? (
                                 <div className="py-10 text-center text-gray-400">
                                     <div className="mb-3 text-3xl">🔍</div>
-                                    <div className="text-sm">Nenhum usuário encontrado.</div>
+                                    <div className="text-sm">Nenhum laboratório encontrado.</div>
                                 </div>
                             ) : (
                                 <>
@@ -261,46 +200,32 @@ export default function PesquisarUsuarios() {
                                         <table className="min-w-full table-fixed border-collapse">
                                             <thead>
                                                 <tr className="text-sm text-gray-600 border-b">
-                                                    <th className="py-3 px-4 text-left">Usuário</th>
-                                                    <th className="py-3 px-4 text-left">Login</th>
-                                                    <th className="py-3 px-4 text-left">Grupos</th>
+                                                    <th className="py-3 px-4 text-left">Laboratório</th>
                                                     <th className="py-3 px-4 text-right">Ações</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {usuarios.map((u, idx) => (
-                                                    <tr
-                                                        key={u.id}
-                                                        className={`border-b hover:bg-gray-50 text-sm ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}
-                                                    >
+                                                {laboratorios.map((l, idx) => (
+                                                    <tr key={l.id} className={`border-b hover:bg-gray-50 text-sm ${idx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
                                                         <td className="py-3 px-4 flex items-center gap-3">
                                                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 flex items-center justify-center text-indigo-700 font-semibold">
-                                                                {initials(u.nome)}
+                                                                {initials(l.nome)}
                                                             </div>
                                                             <div className="flex flex-col">
-                                                                <span className="truncate max-w-[300px] font-medium text-gray-900">{u.nome}</span>
-                                                                <span className="text-xs text-gray-400">ID: {u.id}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="py-3 px-4 text-gray-700">{u.login}</td>
-                                                        <td className="py-3 px-4">
-                                                            <div className="flex gap-2 flex-wrap">
-                                                                {u.roles.map((r) => (
-                                                                    <span key={r} className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">
-                                                                        {r}
-                                                                    </span>
-                                                                ))}
+                                                                <span className="truncate max-w-[300px] font-medium text-gray-900">{l.nome}</span>
+                                                                <span className="text-xs text-gray-400">ID: {l.id}</span>
                                                             </div>
                                                         </td>
                                                         <td className="py-3 px-4 text-right">
-                                                            <div className="flex justify-end gap-2">
-                                                                <button
-                                                                    onClick={() => router.push(`/usuarios/${u.id}`)}
-                                                                    className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs hover:from-emerald-600 hover:to-emerald-700 transition-shadow shadow-sm"
-                                                                >
-                                                                    Visualizar
-                                                                </button>
-                                                            </div>
+                                                            <button
+                                                                onClick={() => {
+                                                                    setSidebarOpen(false);
+                                                                    router.push(`/laboratorios/${l.id}`);
+                                                                }}
+                                                                className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs hover:from-emerald-600 hover:to-emerald-700 transition-shadow shadow-sm"
+                                                            >
+                                                                Visualizar
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -310,32 +235,27 @@ export default function PesquisarUsuarios() {
 
                                     {/* Mobile cards */}
                                     <div className="lg:hidden space-y-3">
-                                        {usuarios.map((u) => (
-                                            <div key={u.id} className="border rounded-xl p-4 shadow-sm bg-white">
+                                        {laboratorios.map((l) => (
+                                            <div key={l.id} className="border rounded-xl p-4 shadow-sm bg-white">
                                                 <div className="flex items-center gap-3 mb-3">
                                                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-sky-100 flex items-center justify-center text-indigo-700 font-semibold">
-                                                        {initials(u.nome)}
+                                                        {initials(l.nome)}
                                                     </div>
                                                     <div className="flex-1">
-                                                        <div className="font-medium text-gray-900">{u.nome}</div>
-                                                        <div className="text-sm text-gray-500">{u.login}</div>
+                                                        <div className="font-medium text-gray-900">{l.nome}</div>
+                                                        <div className="text-sm text-gray-500">ID: {l.id}</div>
                                                     </div>
                                                     <div className="flex-shrink-0">
                                                         <button
-                                                            onClick={() => router.push(`/usuarios/${u.id}`)}
+                                                            onClick={() => {
+                                                                setSidebarOpen(false);
+                                                                router.push(`/laboratorios/${l.id}`);
+                                                            }}
                                                             className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs hover:bg-emerald-700 transition"
                                                         >
                                                             Ver
                                                         </button>
                                                     </div>
-                                                </div>
-
-                                                <div className="flex gap-2 flex-wrap">
-                                                    {u.roles.map((r) => (
-                                                        <span key={r} className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">
-                                                            {r}
-                                                        </span>
-                                                    ))}
                                                 </div>
                                             </div>
                                         ))}
@@ -347,5 +267,5 @@ export default function PesquisarUsuarios() {
                 </main>
             </div>
         </div>
-    )
+    );
 }
