@@ -145,7 +145,7 @@ export default function LaboratorioPage() {
                         <p className="text-gray-600 mb-4">Erro ao carregar os dados do laboratório.</p>
                         <button onClick={() => router.back()} className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Voltar</button>
                     </div>
-                </div>
+                </div>pesquisar
             </div>
         )
     }
