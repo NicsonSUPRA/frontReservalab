@@ -163,7 +163,7 @@ export default function ReservasPage() {
     };
 
     const handleDateClick = (info: any) => {
-        setDataSelecionada(info.dateStr);
+        setDataSelecionada(info.dateStr.split("T")[0]);
         setOpenDialogCadastro(true);
     };
 
