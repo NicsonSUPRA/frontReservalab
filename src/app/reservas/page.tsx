@@ -18,28 +18,11 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import ErrorAlert from "../components/ErrorAlert";
 
-interface Usuario {
-    id: string;
-    login: string;
-    nome: string;
-    roles?: string[];
-}
-
-interface Laboratorio {
-    id: number;
-    nome: string;
-}
-
-interface Semestre {
-    id: number;
-    dataInicio: string;
-    dataFim: string;
-    ano?: number;
-    periodo?: number;
-    descricao?: string;
-}
-
+interface Usuario { id: string; login: string; nome: string; roles?: string[]; }
+interface Laboratorio { id: number; nome: string; }
+interface Semestre { id: number; dataInicio: string; dataFim: string; ano?: number; periodo?: number; descricao?: string; }
 interface Reserva {
     id: number;
     dataInicio: string | null;
@@ -74,11 +57,22 @@ export default function ReservasPage() {
     const [horaInicio, setHoraInicio] = useState<string>("08:00");
     const [horaFim, setHoraFim] = useState<string>("10:00");
 
+    const [errorMessage, setErrorMessage] = useState<string>("");
+
     const calendarRef = useRef<any>(null);
 
     const TOKEN = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    // "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhZG1pbjEiLCJleHAiOjE3NTk0OTUwMDUsInJvbGVzIjpbIkFETUlOIl19.z8BFxesJiJfYYinpEb5UDI-dWxu2LJlw90CYhXoROJ2LkaD8aunLHsFEzsAC0wfegH7IIzZbPSS_mZFyPeNphg";
     const BASE_URL = "http://localhost:8080";
+
+    // Função para resetar campos do dialog de cadastro
+    const resetCadastroDialog = () => {
+        setSelectedUser("");
+        setSelectedLab("");
+        setSelectedSemestre("");
+        setHoraInicio("08:00");
+        setHoraFim("10:00");
+        setDataSelecionada("");
+    };
 
     useEffect(() => {
         const fetchReservas = async () => {
@@ -92,6 +86,7 @@ export default function ReservasPage() {
                 setReservas(data);
             } catch (err) {
                 console.error("Erro ao carregar reservas:", err);
+                setErrorMessage("Erro ao carregar reservas");
             } finally {
                 setLoading(false);
             }
@@ -114,6 +109,7 @@ export default function ReservasPage() {
                 setSemestres(Array.isArray(semestresData) ? semestresData : []);
             } catch (err) {
                 console.error("Erro ao buscar selects:", err);
+                setErrorMessage("Erro ao buscar dados para o formulário");
             }
         };
 
@@ -167,7 +163,6 @@ export default function ReservasPage() {
         setOpenDialogCadastro(true);
     };
 
-    // POST para /reserva/normal com cURL print
     const handleSalvarReserva = async () => {
         try {
             const body = {
@@ -179,7 +174,6 @@ export default function ReservasPage() {
                 status: "PENDENTE",
             };
 
-            // Print do cURL
             console.log(`curl -X POST "${BASE_URL}/reserva/normal" \\
   -H "Authorization: Bearer ${TOKEN}" \\
   -H "Content-Type: application/json" \\
@@ -194,13 +188,23 @@ export default function ReservasPage() {
                 body: JSON.stringify(body),
             });
 
-            if (!res.ok) throw new Error("Erro ao criar reserva");
-            const novaReserva: Reserva = await res.json();
-            setReservas((prev) => [...prev, novaReserva]);
+            const data = await res.json();
+
+            if (!res.ok) {
+                setOpenDialogCadastro(false); // fecha dialog
+                resetCadastroDialog(); // reseta campos
+                setErrorMessage(data.errors?.join(", ") || "Erro ao criar reserva");
+                return;
+            }
+
+            setReservas((prev) => [...prev, data]);
             setOpenDialogCadastro(false);
+            resetCadastroDialog(); // reseta após sucesso
         } catch (err) {
             console.error(err);
-            alert("Erro ao criar reserva");
+            setOpenDialogCadastro(false);
+            resetCadastroDialog();
+            setErrorMessage("Erro de conexão com o servidor");
         }
     };
 
@@ -317,7 +321,13 @@ export default function ReservasPage() {
             </Dialog>
 
             {/* Dialog cadastro */}
-            <Dialog open={openDialogCadastro} onOpenChange={setOpenDialogCadastro}>
+            <Dialog
+                open={openDialogCadastro}
+                onOpenChange={(open) => {
+                    setOpenDialogCadastro(open);
+                    if (!open) resetCadastroDialog(); // reseta ao fechar
+                }}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Nova Reserva</DialogTitle>
@@ -394,6 +404,9 @@ export default function ReservasPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Error Alert */}
+            <ErrorAlert message={errorMessage} onClose={() => setErrorMessage("")} />
         </div>
     );
 }
