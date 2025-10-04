@@ -74,63 +74,124 @@ export default function ReservasPage() {
         setDataSelecionada("");
     };
 
-    useEffect(() => {
-        // Fetch reservas do laboratório 2 (datas no formato ISO local)
-        const fetchReservasLab2 = async () => {
-            setLoading(true);
-            try {
-                const dataInicio = "2025-09-01T00:00:00";
-                const dataFim = "2025-12-31T23:59:59";
-                const url = `${BASE_URL}/reserva/laboratorio/2/periodo?dataInicio=${encodeURIComponent(dataInicio)}&dataFim=${encodeURIComponent(dataFim)}`;
+    // ====== DEBUG HELPERS ======
+    const debugLogState = (label: string, extra?: any) => {
+        console.groupCollapsed(`DEBUG STATE — ${label}`);
+        try {
+            console.log("timestamp:", new Date().toISOString());
+            console.log("extra:", extra);
+            console.log("reservas.length:", reservas.length);
+            console.log(
+                "reservas (id,tipo,dataInicio,diaSemana,horaInicio):",
+                reservas.map((r) => ({
+                    id: r.id,
+                    tipo: r.tipo,
+                    dataInicio: r.dataInicio,
+                    diaSemana: r.diaSemana,
+                    horaInicio: r.horaInicio,
+                }))
+            );
+            console.log("eventsState.length:", eventsState.length);
+            console.log(
+                "eventsState ids:",
+                eventsState.map((e) => e.id)
+            );
 
-                console.log(`curl -X GET "${url}" \\
+            const fixas = reservas
+                .filter((r) => !r.dataInicio && r.diaSemana !== null && r.horaInicio)
+                .map((r) => r.id);
+            const normais = reservas.filter((r) => r.dataInicio).map((r) => r.id);
+            console.log("fixas ids:", fixas);
+            console.log("normais ids:", normais);
+
+            // também loga count atual do calendar api (se disponível)
+            try {
+                const api = calendarRef.current?.getApi?.();
+                if (api) {
+                    console.log("calendar api - getEvents().length:", api.getEvents().length);
+                    console.log("calendar api - event ids:", api.getEvents().map((ev: any) => ev.id));
+                }
+            } catch (err) {
+                console.log("debug: calendar api read failed:", err);
+            }
+        } catch (err) {
+            console.error("debugLogState error:", err);
+        } finally {
+            console.groupEnd();
+        }
+    };
+
+    // -----------------------
+    // Função reutilizável: fetchReservasLab2
+    // -----------------------
+    const fetchReservasLab2 = async (dataInicioParam?: string, dataFimParam?: string) => {
+        setLoading(true);
+        try {
+            const dataInicio = dataInicioParam ?? "2025-09-01T00:00:00";
+            const dataFim = dataFimParam ?? "2025-12-31T23:59:59";
+            const url = `${BASE_URL}/reserva/laboratorio/2/periodo?dataInicio=${encodeURIComponent(dataInicio)}&dataFim=${encodeURIComponent(dataFim)}`;
+
+            console.log(`curl -X GET "${url}" \\
 -H "Authorization: Bearer ${TOKEN}"`);
 
-                const res = await fetch(url, {
-                    headers: { Authorization: `Bearer ${TOKEN}` },
-                });
+            const res = await fetch(url, {
+                headers: { Authorization: `Bearer ${TOKEN}` },
+            });
 
-                console.log("Status:", res.status, res.statusText);
+            console.log("Status:", res.status, res.statusText);
 
-                const data = await res.json();
-                console.log("Resposta do endpoint:", data);
+            const data = await res.json();
+            console.log("Resposta do endpoint:", data);
 
-                setReservas(Array.isArray(data) ? data : []);
-            } catch (err) {
-                console.error("Erro ao carregar reservas do laboratório 2:", err);
-                setErrorMessage("Erro ao carregar reservas do laboratório 2");
-                setReservas([]);
-            } finally {
-                setLoading(false);
-            }
-        };
+            // DEBUG: antes de setReservas
+            debugLogState("fetchReservasLab2 - BEFORE setReservas", { raw: data });
 
-        const fetchSelects = async () => {
-            try {
-                const [resUsuarios, resLabs, resSemestres] = await Promise.all([
-                    fetch(`${BASE_URL}/usuarios`, { headers: { Authorization: `Bearer ${TOKEN}` } }),
-                    fetch(`${BASE_URL}/laboratorios`, { headers: { Authorization: `Bearer ${TOKEN}` } }),
-                    fetch(`${BASE_URL}/semestre`, { headers: { Authorization: `Bearer ${TOKEN}` } }),
-                ]);
+            setReservas(Array.isArray(data) ? data : []);
 
-                const usuariosData = await resUsuarios.json();
-                const laboratoriosData = await resLabs.json();
-                const semestresData = await resSemestres.json();
+            console.log("DEBUG: payload returned from fetchReservasLab2 (raw):", data);
+        } catch (err) {
+            console.error("Erro ao carregar reservas do laboratório 2:", err);
+            setErrorMessage("Erro ao carregar reservas do laboratório 2");
+            setReservas([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-                setUsuarios(Array.isArray(usuariosData) ? usuariosData : []);
-                setLaboratorios(Array.isArray(laboratoriosData) ? laboratoriosData : []);
-                setSemestres(Array.isArray(semestresData) ? semestresData : []);
-            } catch (err) {
-                console.error("Erro ao buscar selects:", err);
-                setErrorMessage("Erro ao buscar dados para o formulário");
-            }
-        };
+    // -----------------------
+    // Fetch selects (usuarios, labs, semestres)
+    // -----------------------
+    const fetchSelects = async () => {
+        try {
+            const [resUsuarios, resLabs, resSemestres] = await Promise.all([
+                fetch(`${BASE_URL}/usuarios`, { headers: { Authorization: `Bearer ${TOKEN}` } }),
+                fetch(`${BASE_URL}/laboratorios`, { headers: { Authorization: `Bearer ${TOKEN}` } }),
+                fetch(`${BASE_URL}/semestre`, { headers: { Authorization: `Bearer ${TOKEN}` } }),
+            ]);
 
+            const usuariosData = await resUsuarios.json();
+            const laboratoriosData = await resLabs.json();
+            const semestresData = await resSemestres.json();
+
+            setUsuarios(Array.isArray(usuariosData) ? usuariosData : []);
+            setLaboratorios(Array.isArray(laboratoriosData) ? laboratoriosData : []);
+            setSemestres(Array.isArray(semestresData) ? semestresData : []);
+        } catch (err) {
+            console.error("Erro ao buscar selects:", err);
+            setErrorMessage("Erro ao buscar dados para o formulário");
+        }
+    };
+
+    // Inicial
+    useEffect(() => {
         fetchReservasLab2();
         fetchSelects();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Função que mapeia as reservas para EventInput do FullCalendar
+    // -----------------------
+    // Mapear reservas -> EventInput (com ids únicos por ocorrência)
+    // -----------------------
     const mapReservasParaEventos = (lista: Reserva[]): EventInput[] => {
         if (!Array.isArray(lista)) return [];
 
@@ -148,9 +209,8 @@ export default function ReservasPage() {
 
             // Recorrente / fixa (daysOfWeek)
             if (!reserva.dataInicio && reserva.diaSemana !== null && reserva.horaInicio) {
-                // Se backend usa 1..7 (segunda..domingo), mapeia para 0..6 onde 0=domingo
-                // Aqui usamos modulo para tratar 7 -> 0
                 const dayNum = Number(reserva.diaSemana);
+                // mapa seguro (caso backend use 1..7)
                 const dayForFullCalendar = Number.isFinite(dayNum) ? (dayNum % 7) : dayNum;
 
                 outputs.push({
@@ -166,10 +226,22 @@ export default function ReservasPage() {
                 });
             }
 
-            // Evento normal com data específica
+            // Evento normal com data específica (cada ocorrência ganha um id único)
             if (reserva.dataInicio) {
+                // cria id único por ocorrência (inclui timestamp)
+                // usa ISO sem ":" para evitar problemas no id
+                let iso = "";
+                try {
+                    iso = new Date(reserva.dataInicio).toISOString(); // ex: "2025-10-01T08:00:00.000Z"
+                } catch {
+                    iso = String(reserva.dataInicio);
+                }
+                // remove caracteres que podem confundir (colons) ou encode
+                const safeIso = encodeURIComponent(iso);
+                const eventId = `normal-${reserva.id}-${safeIso}`;
+
                 outputs.push({
-                    id: `normal-${reserva.id}`,
+                    id: eventId,
                     title: `${reserva.usuario?.nome ?? "Usuário"} — ${reserva.laboratorio?.nome ?? "Lab"}`,
                     start: reserva.dataInicio,
                     end: reserva.dataFim ?? undefined,
@@ -190,23 +262,50 @@ export default function ReservasPage() {
     useEffect(() => {
         const evts = mapReservasParaEventos(reservas);
         setEventsState(evts);
+
+        // FORÇA atualização do FullCalendar via API para evitar cache interno que some fixas
+        try {
+            const api = calendarRef.current?.getApi?.();
+            if (api) {
+                // remove todos os eventos e reaplica manualmente
+                api.removeAllEvents();
+                evts.forEach((e: any) => {
+                    api.addEvent(e as any);
+                });
+
+                // logs para debug
+                console.log("DEBUG: calendar api events count after add:", api.getEvents().length);
+                console.log("DEBUG: calendar api event ids after add:", api.getEvents().map((ev: any) => ev.id));
+            }
+        } catch (err) {
+            console.warn("DEBUG: calendar api update failed:", err);
+        }
+
+        console.log("DEBUG: events mapped (evts):", evts);
+        debugLogState("after-mapping-events", { mappedCount: evts.length });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [reservas]);
 
+    // -----------------------
+    // Cliques / Interações
+    // -----------------------
     const handleEventClick = (clickInfo: any) => {
-        // pega reserva direto de extendedProps (muito mais confiável)
+        console.log("DEBUG: event clicked, clickInfo:", clickInfo.event);
+        console.log("DEBUG: extendedProps:", clickInfo.event.extendedProps);
+        debugLogState("on-event-click");
+
         const ext = clickInfo.event.extendedProps;
         if (ext && ext.reserva) {
             setSelectedReserva(ext.reserva as Reserva);
             console.log("Evento clicado - reserva via extendedProps:", ext.reserva);
         } else {
-            // fallback seguro (remove prefixo se existir)
             const rawId = String(clickInfo.event.id || "");
-            const numeric = rawId.replace(/^(fixa-|normal-)/, "");
+            // tira prefixos e possíveis -ISO
+            const numeric = rawId.replace(/^.*?(-)?/, "").replace(/%/g, "");
             const r = reservas.find((x) => String(x.id) === numeric) ?? null;
             setSelectedReserva(r);
             console.log("Evento clicado - fallback reserva:", r);
         }
-
         setOpenDialogDetalhes(true);
     };
 
@@ -215,6 +314,9 @@ export default function ReservasPage() {
         setOpenDialogCadastro(true);
     };
 
+    // -----------------------
+    // Salvar reserva: faz POST e em seguida REFETCH completo
+    // -----------------------
     const handleSalvarReserva = async () => {
         try {
             const body = {
@@ -226,10 +328,8 @@ export default function ReservasPage() {
                 status: "PENDENTE",
             };
 
-            console.log(`curl -X POST "${BASE_URL}/reserva/normal" \\
--H "Authorization: Bearer ${TOKEN}" \\
--H "Content-Type: application/json" \\
--d '${JSON.stringify(body, null, 2)}'`);
+            console.log("DEBUG: about to POST, body:", body);
+            debugLogState("before-post");
 
             const res = await fetch(`${BASE_URL}/reserva/normal`, {
                 method: "POST",
@@ -241,6 +341,13 @@ export default function ReservasPage() {
             });
 
             const data = await res.json();
+            console.log("DEBUG: POST response status:", res.status, res.statusText);
+            console.log("DEBUG: POST response body:", data);
+            debugLogState("after-post-before-refetch", { postResponse: data });
+
+            // faz refetch completo para garantir fonte da verdade do servidor
+            await fetchReservasLab2();
+            debugLogState("after-refetch-post");
 
             if (!res.ok) {
                 setOpenDialogCadastro(false);
@@ -249,12 +356,11 @@ export default function ReservasPage() {
                 return;
             }
 
-            // atualiza reservas (isso acionará a reconstrução de eventsState via useEffect acima)
-            setReservas((prev) => Array.isArray(prev) ? [...prev, data] : [data]);
             setOpenDialogCadastro(false);
             resetCadastroDialog();
         } catch (err) {
             console.error(err);
+            debugLogState("post-error", { error: String(err) });
             setOpenDialogCadastro(false);
             resetCadastroDialog();
             setErrorMessage("Erro de conexão com o servidor");
