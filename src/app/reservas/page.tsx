@@ -41,6 +41,7 @@ interface Reserva {
 export default function ReservasPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [reservas, setReservas] = useState<Reserva[]>([]);
+    const [eventsState, setEventsState] = useState<EventInput[]>([]);
     const [loading, setLoading] = useState(true);
     const [openDialogDetalhes, setOpenDialogDetalhes] = useState(false);
     const [openDialogCadastro, setOpenDialogCadastro] = useState(false);
@@ -64,7 +65,6 @@ export default function ReservasPage() {
     const TOKEN = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     const BASE_URL = "http://localhost:8080";
 
-    // Função para resetar campos do dialog de cadastro
     const resetCadastroDialog = () => {
         setSelectedUser("");
         setSelectedLab("");
@@ -75,18 +75,31 @@ export default function ReservasPage() {
     };
 
     useEffect(() => {
-        const fetchReservas = async () => {
+        // Fetch reservas do laboratório 2 (datas no formato ISO local)
+        const fetchReservasLab2 = async () => {
             setLoading(true);
             try {
-                const res = await fetch(`${BASE_URL}/reserva`, {
+                const dataInicio = "2025-09-01T00:00:00";
+                const dataFim = "2025-12-31T23:59:59";
+                const url = `${BASE_URL}/reserva/laboratorio/2/periodo?dataInicio=${encodeURIComponent(dataInicio)}&dataFim=${encodeURIComponent(dataFim)}`;
+
+                console.log(`curl -X GET "${url}" \\
+-H "Authorization: Bearer ${TOKEN}"`);
+
+                const res = await fetch(url, {
                     headers: { Authorization: `Bearer ${TOKEN}` },
                 });
-                if (!res.ok) throw new Error("Erro ao buscar reservas");
-                const data: Reserva[] = await res.json();
-                setReservas(data);
+
+                console.log("Status:", res.status, res.statusText);
+
+                const data = await res.json();
+                console.log("Resposta do endpoint:", data);
+
+                setReservas(Array.isArray(data) ? data : []);
             } catch (err) {
-                console.error("Erro ao carregar reservas:", err);
-                setErrorMessage("Erro ao carregar reservas");
+                console.error("Erro ao carregar reservas do laboratório 2:", err);
+                setErrorMessage("Erro ao carregar reservas do laboratório 2");
+                setReservas([]);
             } finally {
                 setLoading(false);
             }
@@ -113,48 +126,87 @@ export default function ReservasPage() {
             }
         };
 
-        fetchReservas();
+        fetchReservasLab2();
         fetchSelects();
     }, []);
 
-    const events: EventInput[] = [];
-    reservas.forEach((reserva) => {
-        const color =
-            reserva.status === "APROVADA"
-                ? "#16a34a"
-                : reserva.status === "PENDENTE"
-                    ? "#f59e0b"
-                    : reserva.status === "FIXA"
-                        ? "#22c55e"
-                        : "#6366f1";
+    // Função que mapeia as reservas para EventInput do FullCalendar
+    const mapReservasParaEventos = (lista: Reserva[]): EventInput[] => {
+        if (!Array.isArray(lista)) return [];
 
-        if (!reserva.dataInicio && reserva.diaSemana !== null && reserva.horaInicio) {
-            events.push({
-                id: String(reserva.id),
-                title: `${reserva.usuario?.nome ?? "Usuário"} — ${reserva.laboratorio?.nome ?? "Lab"}`,
-                daysOfWeek: [reserva.diaSemana],
-                startTime: reserva.horaInicio,
-                endTime: reserva.horaFim ?? undefined,
-                color,
-            });
-            return;
-        }
+        const mapped: EventInput[] = lista.flatMap((reserva) => {
+            const color =
+                reserva.status === "APROVADA"
+                    ? "#16a34a"
+                    : reserva.status === "PENDENTE"
+                        ? "#f59e0b"
+                        : reserva.status === "FIXA"
+                            ? "#22c55e"
+                            : "#6366f1";
 
-        if (reserva.dataInicio) {
-            events.push({
-                id: String(reserva.id),
-                title: `${reserva.usuario?.nome ?? "Usuário"} — ${reserva.laboratorio?.nome ?? "Lab"}`,
-                start: reserva.dataInicio ?? undefined,
-                end: reserva.dataFim ?? undefined,
-                color,
-            });
-        }
-    });
+            const outputs: EventInput[] = [];
+
+            // Recorrente / fixa (daysOfWeek)
+            if (!reserva.dataInicio && reserva.diaSemana !== null && reserva.horaInicio) {
+                // Se backend usa 1..7 (segunda..domingo), mapeia para 0..6 onde 0=domingo
+                // Aqui usamos modulo para tratar 7 -> 0
+                const dayNum = Number(reserva.diaSemana);
+                const dayForFullCalendar = Number.isFinite(dayNum) ? (dayNum % 7) : dayNum;
+
+                outputs.push({
+                    id: `fixa-${reserva.id}`,
+                    title: `${reserva.usuario?.nome ?? "Usuário"} — ${reserva.laboratorio?.nome ?? "Lab"}`,
+                    daysOfWeek: [dayForFullCalendar],
+                    startTime: reserva.horaInicio!,
+                    endTime: reserva.horaFim ?? undefined,
+                    backgroundColor: color,
+                    borderColor: color,
+                    allDay: false,
+                    extendedProps: { reserva },
+                });
+            }
+
+            // Evento normal com data específica
+            if (reserva.dataInicio) {
+                outputs.push({
+                    id: `normal-${reserva.id}`,
+                    title: `${reserva.usuario?.nome ?? "Usuário"} — ${reserva.laboratorio?.nome ?? "Lab"}`,
+                    start: reserva.dataInicio,
+                    end: reserva.dataFim ?? undefined,
+                    backgroundColor: color,
+                    borderColor: color,
+                    extendedProps: { reserva },
+                });
+            }
+
+            return outputs;
+        });
+
+        console.log(`Mapeadas ${mapped.length} events a partir de ${lista.length} reservas.`);
+        return mapped;
+    };
+
+    // Reconstrói eventsState sempre que reservas mudam
+    useEffect(() => {
+        const evts = mapReservasParaEventos(reservas);
+        setEventsState(evts);
+    }, [reservas]);
 
     const handleEventClick = (clickInfo: any) => {
-        const id = clickInfo.event.id;
-        const r = reservas.find((x) => String(x.id) === String(id)) ?? null;
-        setSelectedReserva(r);
+        // pega reserva direto de extendedProps (muito mais confiável)
+        const ext = clickInfo.event.extendedProps;
+        if (ext && ext.reserva) {
+            setSelectedReserva(ext.reserva as Reserva);
+            console.log("Evento clicado - reserva via extendedProps:", ext.reserva);
+        } else {
+            // fallback seguro (remove prefixo se existir)
+            const rawId = String(clickInfo.event.id || "");
+            const numeric = rawId.replace(/^(fixa-|normal-)/, "");
+            const r = reservas.find((x) => String(x.id) === numeric) ?? null;
+            setSelectedReserva(r);
+            console.log("Evento clicado - fallback reserva:", r);
+        }
+
         setOpenDialogDetalhes(true);
     };
 
@@ -175,9 +227,9 @@ export default function ReservasPage() {
             };
 
             console.log(`curl -X POST "${BASE_URL}/reserva/normal" \\
-  -H "Authorization: Bearer ${TOKEN}" \\
-  -H "Content-Type: application/json" \\
-  -d '${JSON.stringify(body, null, 2)}'`);
+-H "Authorization: Bearer ${TOKEN}" \\
+-H "Content-Type: application/json" \\
+-d '${JSON.stringify(body, null, 2)}'`);
 
             const res = await fetch(`${BASE_URL}/reserva/normal`, {
                 method: "POST",
@@ -191,15 +243,16 @@ export default function ReservasPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setOpenDialogCadastro(false); // fecha dialog
-                resetCadastroDialog(); // reseta campos
+                setOpenDialogCadastro(false);
+                resetCadastroDialog();
                 setErrorMessage(data.errors?.join(", ") || "Erro ao criar reserva");
                 return;
             }
 
-            setReservas((prev) => [...prev, data]);
+            // atualiza reservas (isso acionará a reconstrução de eventsState via useEffect acima)
+            setReservas((prev) => Array.isArray(prev) ? [...prev, data] : [data]);
             setOpenDialogCadastro(false);
-            resetCadastroDialog(); // reseta após sucesso
+            resetCadastroDialog();
         } catch (err) {
             console.error(err);
             setOpenDialogCadastro(false);
@@ -220,7 +273,7 @@ export default function ReservasPage() {
 
         const startHour = formatHour(start);
         const endHour = formatHour(end);
-        const bgColor = event.backgroundColor || event.borderColor || "#6366f1";
+        const bgColor = (event.backgroundColor || event.borderColor || "#6366f1") as string;
 
         if (view.type === "dayGridMonth") {
             return (
@@ -273,7 +326,7 @@ export default function ReservasPage() {
                                 center: "title",
                                 right: "dayGridMonth,timeGridWeek,timeGridDay",
                             }}
-                            events={events}
+                            events={eventsState}
                             eventClick={handleEventClick}
                             dateClick={handleDateClick}
                             eventContent={renderEventContent}
@@ -325,7 +378,7 @@ export default function ReservasPage() {
                 open={openDialogCadastro}
                 onOpenChange={(open) => {
                     setOpenDialogCadastro(open);
-                    if (!open) resetCadastroDialog(); // reseta ao fechar
+                    if (!open) resetCadastroDialog();
                 }}
             >
                 <DialogContent>
@@ -405,7 +458,6 @@ export default function ReservasPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Error Alert */}
             <ErrorAlert message={errorMessage} onClose={() => setErrorMessage("")} />
         </div>
     );
