@@ -22,12 +22,12 @@ import ErrorAlert from "../components/ErrorAlert";
 
 interface Usuario { id: string; login: string; nome: string; roles?: string[]; }
 interface Laboratorio { id: number; nome: string; }
-interface Semestre { id: number; dataInicio: string; dataFim: string; ano?: number; periodo?: number; descricao?: string; }
+interface Semestre { id: number; dataInicio: string; dataFim: string; descricao?: string; }
 interface Reserva {
     id: number;
     dataInicio: string | null;
     dataFim: string | null;
-    status: string;
+    status: string | null;
     tipo?: string | null;
     diaSemana: number | null;
     horaInicio: string | null;
@@ -42,7 +42,7 @@ export default function ReservasPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [reservas, setReservas] = useState<Reserva[]>([]);
     const [eventsState, setEventsState] = useState<EventInput[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [openDialogDetalhes, setOpenDialogDetalhes] = useState(false);
     const [openDialogCadastro, setOpenDialogCadastro] = useState(false);
     const [selectedReserva, setSelectedReserva] = useState<Reserva | null>(null);
@@ -74,99 +74,15 @@ export default function ReservasPage() {
         setDataSelecionada("");
     };
 
-    // ====== DEBUG HELPERS ======
-    const debugLogState = (label: string, extra?: any) => {
-        console.groupCollapsed(`DEBUG STATE — ${label}`);
-        try {
-            console.log("timestamp:", new Date().toISOString());
-            console.log("extra:", extra);
-            console.log("reservas.length:", reservas.length);
-            console.log(
-                "reservas (id,tipo,dataInicio,diaSemana,horaInicio):",
-                reservas.map((r) => ({
-                    id: r.id,
-                    tipo: r.tipo,
-                    dataInicio: r.dataInicio,
-                    diaSemana: r.diaSemana,
-                    horaInicio: r.horaInicio,
-                }))
-            );
-            console.log("eventsState.length:", eventsState.length);
-            console.log(
-                "eventsState ids:",
-                eventsState.map((e) => e.id)
-            );
-
-            const fixas = reservas
-                .filter((r) => !r.dataInicio && r.diaSemana !== null && r.horaInicio)
-                .map((r) => r.id);
-            const normais = reservas.filter((r) => r.dataInicio).map((r) => r.id);
-            console.log("fixas ids:", fixas);
-            console.log("normais ids:", normais);
-
-            // também loga count atual do calendar api (se disponível)
-            try {
-                const api = calendarRef.current?.getApi?.();
-                if (api) {
-                    console.log("calendar api - getEvents().length:", api.getEvents().length);
-                    console.log("calendar api - event ids:", api.getEvents().map((ev: any) => ev.id));
-                }
-            } catch (err) {
-                console.log("debug: calendar api read failed:", err);
-            }
-        } catch (err) {
-            console.error("debugLogState error:", err);
-        } finally {
-            console.groupEnd();
-        }
-    };
-
-    // -----------------------
-    // Função reutilizável: fetchReservasLab2
-    // -----------------------
-    const fetchReservasLab2 = async (dataInicioParam?: string, dataFimParam?: string) => {
-        setLoading(true);
-        try {
-            const dataInicio = dataInicioParam ?? "2025-09-01T00:00:00";
-            const dataFim = dataFimParam ?? "2025-12-31T23:59:59";
-            const url = `${BASE_URL}/reserva/laboratorio/2/periodo?dataInicio=${encodeURIComponent(dataInicio)}&dataFim=${encodeURIComponent(dataFim)}`;
-
-            console.log(`curl -X GET "${url}" \\
--H "Authorization: Bearer ${TOKEN}"`);
-
-            const res = await fetch(url, {
-                headers: { Authorization: `Bearer ${TOKEN}` },
-            });
-
-            console.log("Status:", res.status, res.statusText);
-
-            const data = await res.json();
-            console.log("Resposta do endpoint:", data);
-
-            // DEBUG: antes de setReservas
-            debugLogState("fetchReservasLab2 - BEFORE setReservas", { raw: data });
-
-            setReservas(Array.isArray(data) ? data : []);
-
-            console.log("DEBUG: payload returned from fetchReservasLab2 (raw):", data);
-        } catch (err) {
-            console.error("Erro ao carregar reservas do laboratório 2:", err);
-            setErrorMessage("Erro ao carregar reservas do laboratório 2");
-            setReservas([]);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     // -----------------------
     // Fetch selects (usuarios, labs, semestres)
     // -----------------------
     const fetchSelects = async () => {
         try {
             const [resUsuarios, resLabs, resSemestres] = await Promise.all([
-                fetch(`${BASE_URL}/usuarios`, { headers: { Authorization: `Bearer ${TOKEN}` } }),
-                fetch(`${BASE_URL}/laboratorios`, { headers: { Authorization: `Bearer ${TOKEN}` } }),
-                fetch(`${BASE_URL}/semestre`, { headers: { Authorization: `Bearer ${TOKEN}` } }),
+                fetch(`${BASE_URL}/usuarios`, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined }),
+                fetch(`${BASE_URL}/laboratorios`, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined }),
+                fetch(`${BASE_URL}/semestre`, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined }),
             ]);
 
             const usuariosData = await resUsuarios.json();
@@ -182,37 +98,59 @@ export default function ReservasPage() {
         }
     };
 
-    // Inicial
+    // Inicial: apenas fetch dos selects
     useEffect(() => {
-        fetchReservasLab2();
         fetchSelects();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // -----------------------
-    // Mapear reservas -> EventInput (com ids únicos por ocorrência)
+    // Buscar reservas por laboratório
+    // -----------------------
+    const fetchReservasPorLab = async (labId: number | "", dataInicioParam?: string, dataFimParam?: string) => {
+        if (!labId) {
+            setErrorMessage("Selecione um laboratório antes de pesquisar.");
+            return;
+        }
+        setLoading(true);
+        try {
+            const dataInicio = dataInicioParam ?? "2025-09-01T00:00:00";
+            const dataFim = dataFimParam ?? "2025-12-31T23:59:59";
+            const url = `${BASE_URL}/reserva/laboratorio/${labId}/periodo?dataInicio=${encodeURIComponent(dataInicio)}&dataFim=${encodeURIComponent(dataFim)}`;
+
+            const res = await fetch(url, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined });
+            const text = await res.text();
+            const data = text ? JSON.parse(text) : [];
+            setReservas(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error("Erro ao carregar reservas do laboratório:", err);
+            setErrorMessage("Erro ao carregar reservas do laboratório");
+            setReservas([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // -----------------------
+    // Mapear reservas para eventos FullCalendar
     // -----------------------
     const mapReservasParaEventos = (lista: Reserva[]): EventInput[] => {
         if (!Array.isArray(lista)) return [];
 
-        const mapped: EventInput[] = lista.flatMap((reserva) => {
+        return lista.flatMap((reserva) => {
             const color =
                 reserva.status === "APROVADA"
                     ? "#16a34a"
                     : reserva.status === "PENDENTE"
                         ? "#f59e0b"
-                        : reserva.status === "FIXA"
+                        : reserva.tipo === "FIXA"
                             ? "#22c55e"
                             : "#6366f1";
 
             const outputs: EventInput[] = [];
 
-            // Recorrente / fixa (daysOfWeek)
+            // Recorrente / fixa
             if (!reserva.dataInicio && reserva.diaSemana !== null && reserva.horaInicio) {
-                const dayNum = Number(reserva.diaSemana);
-                // mapa seguro (caso backend use 1..7)
-                const dayForFullCalendar = Number.isFinite(dayNum) ? (dayNum % 7) : dayNum;
-
+                const dayForFullCalendar = Number(reserva.diaSemana) % 7;
                 outputs.push({
                     id: `fixa-${reserva.id}`,
                     title: `${reserva.usuario?.nome ?? "Usuário"} — ${reserva.laboratorio?.nome ?? "Lab"}`,
@@ -226,22 +164,11 @@ export default function ReservasPage() {
                 });
             }
 
-            // Evento normal com data específica (cada ocorrência ganha um id único)
+            // Evento normal com data
             if (reserva.dataInicio) {
-                // cria id único por ocorrência (inclui timestamp)
-                // usa ISO sem ":" para evitar problemas no id
-                let iso = "";
-                try {
-                    iso = new Date(reserva.dataInicio).toISOString(); // ex: "2025-10-01T08:00:00.000Z"
-                } catch {
-                    iso = String(reserva.dataInicio);
-                }
-                // remove caracteres que podem confundir (colons) ou encode
-                const safeIso = encodeURIComponent(iso);
-                const eventId = `normal-${reserva.id}-${safeIso}`;
-
+                const safeIso = encodeURIComponent(new Date(reserva.dataInicio).toISOString());
                 outputs.push({
-                    id: eventId,
+                    id: `normal-${reserva.id}-${safeIso}`,
                     title: `${reserva.usuario?.nome ?? "Usuário"} — ${reserva.laboratorio?.nome ?? "Lab"}`,
                     start: reserva.dataInicio,
                     end: reserva.dataFim ?? undefined,
@@ -253,59 +180,19 @@ export default function ReservasPage() {
 
             return outputs;
         });
-
-        console.log(`Mapeadas ${mapped.length} events a partir de ${lista.length} reservas.`);
-        return mapped;
     };
 
-    // Reconstrói eventsState sempre que reservas mudam
     useEffect(() => {
-        const evts = mapReservasParaEventos(reservas);
-        setEventsState(evts);
-
-        // FORÇA atualização do FullCalendar via API para evitar cache interno que some fixas
-        try {
-            const api = calendarRef.current?.getApi?.();
-            if (api) {
-                // remove todos os eventos e reaplica manualmente
-                api.removeAllEvents();
-                evts.forEach((e: any) => {
-                    api.addEvent(e as any);
-                });
-
-                // logs para debug
-                console.log("DEBUG: calendar api events count after add:", api.getEvents().length);
-                console.log("DEBUG: calendar api event ids after add:", api.getEvents().map((ev: any) => ev.id));
-            }
-        } catch (err) {
-            console.warn("DEBUG: calendar api update failed:", err);
-        }
-
-        console.log("DEBUG: events mapped (evts):", evts);
-        debugLogState("after-mapping-events", { mappedCount: evts.length });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        setEventsState(mapReservasParaEventos(reservas));
     }, [reservas]);
 
     // -----------------------
     // Cliques / Interações
     // -----------------------
     const handleEventClick = (clickInfo: any) => {
-        console.log("DEBUG: event clicked, clickInfo:", clickInfo.event);
-        console.log("DEBUG: extendedProps:", clickInfo.event.extendedProps);
-        debugLogState("on-event-click");
-
         const ext = clickInfo.event.extendedProps;
-        if (ext && ext.reserva) {
-            setSelectedReserva(ext.reserva as Reserva);
-            console.log("Evento clicado - reserva via extendedProps:", ext.reserva);
-        } else {
-            const rawId = String(clickInfo.event.id || "");
-            // tira prefixos e possíveis -ISO
-            const numeric = rawId.replace(/^.*?(-)?/, "").replace(/%/g, "");
-            const r = reservas.find((x) => String(x.id) === numeric) ?? null;
-            setSelectedReserva(r);
-            console.log("Evento clicado - fallback reserva:", r);
-        }
+        if (ext && ext.reserva) setSelectedReserva(ext.reserva as Reserva);
+        else setSelectedReserva(null);
         setOpenDialogDetalhes(true);
     };
 
@@ -314,9 +201,6 @@ export default function ReservasPage() {
         setOpenDialogCadastro(true);
     };
 
-    // -----------------------
-    // Salvar reserva: faz POST e em seguida REFETCH completo
-    // -----------------------
     const handleSalvarReserva = async () => {
         try {
             const body = {
@@ -327,40 +211,26 @@ export default function ReservasPage() {
                 dataFim: `${dataSelecionada}T${horaFim}`,
                 status: "PENDENTE",
             };
-
-            console.log("DEBUG: about to POST, body:", body);
-            debugLogState("before-post");
-
             const res = await fetch(`${BASE_URL}/reserva/normal`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${TOKEN}`,
-                },
+                headers: { "Content-Type": "application/json", ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}) },
                 body: JSON.stringify(body),
             });
-
-            const data = await res.json();
-            console.log("DEBUG: POST response status:", res.status, res.statusText);
-            console.log("DEBUG: POST response body:", data);
-            debugLogState("after-post-before-refetch", { postResponse: data });
-
-            // faz refetch completo para garantir fonte da verdade do servidor
-            await fetchReservasLab2();
-            debugLogState("after-refetch-post");
+            const text = await res.text();
+            const data = text ? JSON.parse(text) : null;
 
             if (!res.ok) {
                 setOpenDialogCadastro(false);
                 resetCadastroDialog();
-                setErrorMessage(data.errors?.join(", ") || "Erro ao criar reserva");
+                setErrorMessage(data?.errors?.join?.(", ") || "Erro ao criar reserva");
                 return;
             }
 
+            if (selectedLab) fetchReservasPorLab(selectedLab);
             setOpenDialogCadastro(false);
             resetCadastroDialog();
         } catch (err) {
             console.error(err);
-            debugLogState("post-error", { error: String(err) });
             setOpenDialogCadastro(false);
             resetCadastroDialog();
             setErrorMessage("Erro de conexão com o servidor");
@@ -369,52 +239,22 @@ export default function ReservasPage() {
 
     const renderEventContent = (eventInfo: any) => {
         const { event, view } = eventInfo;
-        const start = event.start as Date | null;
-        const end = event.end as Date | null;
-
-        const formatHour = (date: Date | null) => {
-            if (!date) return "";
-            return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
-        };
-
-        const startHour = formatHour(start);
-        const endHour = formatHour(end);
-        const bgColor = (event.backgroundColor || event.borderColor || "#6366f1") as string;
-
-        if (view.type === "dayGridMonth") {
-            return (
-                <div
-                    className="w-full block rounded-md px-2 py-1 text-white text-[12px] font-semibold text-center"
-                    style={{ backgroundColor: bgColor }}
-                >
-                    {startHour && endHour ? `${startHour} - ${endHour}` : startHour}
-                </div>
-            );
-        }
+        const startHour = event.start?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) ?? "";
+        const endHour = event.end?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) ?? "";
+        const bgColor = event.backgroundColor ?? "#6366f1";
 
         return (
-            <div
-                className="w-full block rounded-md px-2 py-1 text-white flex flex-col"
-                style={{ backgroundColor: bgColor }}
-            >
-                <span className="text-[11px] leading-[1] font-semibold">{startHour}{endHour ? ` - ${endHour}` : ""}</span>
+            <div className="w-full block rounded-lg px-2 py-1 text-white flex flex-col shadow-md" style={{ backgroundColor: bgColor }}>
+                <span className="text-[11px] font-semibold">{startHour}{endHour ? ` - ${endHour}` : ""}</span>
                 <span className="text-[12px] truncate">{event.title}</span>
             </div>
         );
     };
 
-    if (loading) return <div className="p-6">Carregando reservas...</div>;
-
     return (
         <div className="flex min-h-screen bg-gray-50">
             <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
-            {sidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black/30 z-40 md:hidden"
-                    onClick={() => setSidebarOpen(false)}
-                    aria-hidden
-                />
-            )}
+            {sidebarOpen && <div className="fixed inset-0 bg-black/30 z-40 md:hidden" onClick={() => setSidebarOpen(false)} aria-hidden />}
 
             <div className="flex-1 flex flex-col min-h-screen">
                 <div className="bg-gradient-to-r from-indigo-600 via-sky-500 to-indigo-500 text-white py-4 px-4 sm:px-6 flex items-center justify-between shadow-lg">
@@ -422,7 +262,30 @@ export default function ReservasPage() {
                 </div>
 
                 <main className="flex-1 p-3 sm:p-6 md:p-8 w-full">
-                    <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl p-3 sm:p-6 border border-gray-100">
+                    <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100">
+
+                        {/* Barra de filtros */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+                            <select
+                                className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                value={selectedLab}
+                                onChange={(e) => setSelectedLab(e.target.value === "" ? "" : Number(e.target.value))}
+                            >
+                                <option value="">Selecione um laboratório</option>
+                                {laboratorios.map((l) => (
+                                    <option key={l.id} value={l.id}>{l.nome}</option>
+                                ))}
+                            </select>
+                            <Button
+                                className="sm:w-auto"
+                                onClick={() => { if (!selectedLab) setErrorMessage("Selecione um laboratório."); else fetchReservasPorLab(selectedLab); }}
+                            >
+                                Pesquisar
+                            </Button>
+                            {loading && <span className="text-gray-500 ml-auto">Carregando reservas...</span>}
+                        </div>
+
+                        {/* Calendário */}
                         <FullCalendar
                             ref={calendarRef}
                             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -447,25 +310,20 @@ export default function ReservasPage() {
 
             {/* Dialog detalhes */}
             <Dialog open={openDialogDetalhes} onOpenChange={setOpenDialogDetalhes}>
-                <DialogContent>
+                <DialogContent className="max-w-md rounded-xl">
                     <DialogHeader>
                         <DialogTitle>Detalhes da Reserva</DialogTitle>
                         <DialogDescription asChild>
-                            <div className="space-y-2">
+                            <div className="space-y-2 mt-2">
                                 {selectedReserva ? (
                                     <>
                                         <div><strong>Usuário:</strong> {selectedReserva.usuario?.nome} ({selectedReserva.usuario?.login})</div>
                                         <div><strong>Laboratório:</strong> {selectedReserva.laboratorio?.nome}</div>
-                                        <div><strong>Status:</strong> {selectedReserva.status}</div>
+                                        <div><strong>Status:</strong> {selectedReserva.status ?? "-"}</div>
                                         {selectedReserva.dataInicio ? (
-                                            <div>
-                                                <strong>Início:</strong> {selectedReserva.dataInicio} <br />
-                                                <strong>Fim:</strong> {selectedReserva.dataFim ?? "-"}
-                                            </div>
+                                            <div><strong>Início:</strong> {selectedReserva.dataInicio} <br /><strong>Fim:</strong> {selectedReserva.dataFim ?? "-"}</div>
                                         ) : (
-                                            <div>
-                                                <strong>Recorrência:</strong> dia {selectedReserva.diaSemana} — {selectedReserva.horaInicio} até {selectedReserva.horaFim ?? "-"}
-                                            </div>
+                                            <div><strong>Recorrência:</strong> dia {selectedReserva.diaSemana ?? "-"} — {selectedReserva.horaInicio ?? "-"} até {selectedReserva.horaFim ?? "-"}</div>
                                         )}
                                         <div><strong>Semestre:</strong> {selectedReserva.semestre?.descricao ?? "-"}</div>
                                     </>
@@ -480,85 +338,38 @@ export default function ReservasPage() {
             </Dialog>
 
             {/* Dialog cadastro */}
-            <Dialog
-                open={openDialogCadastro}
-                onOpenChange={(open) => {
-                    setOpenDialogCadastro(open);
-                    if (!open) resetCadastroDialog();
-                }}
-            >
-                <DialogContent>
+            <Dialog open={openDialogCadastro} onOpenChange={(open) => { setOpenDialogCadastro(open); if (!open) resetCadastroDialog(); }}>
+                <DialogContent className="max-w-md rounded-xl">
                     <DialogHeader>
                         <DialogTitle>Nova Reserva</DialogTitle>
                         <DialogDescription asChild>
-                            <div className="space-y-3">
-                                {dataSelecionada && (
-                                    <div className="p-2 bg-gray-100 rounded">
-                                        <strong>Data selecionada:</strong> {dataSelecionada}
-                                    </div>
-                                )}
-                                <div>
-                                    <label>Hora Início:</label>
-                                    <input
-                                        type="time"
-                                        className="border p-2 rounded w-full"
-                                        value={horaInicio}
-                                        onChange={(e) => setHoraInicio(e.target.value)}
-                                    />
+                            <div className="space-y-3 mt-2">
+                                {dataSelecionada && <div className="p-2 bg-gray-100 rounded">Data selecionada: {dataSelecionada}</div>}
+
+                                <div className="flex gap-2">
+                                    <input type="time" className="border rounded-lg px-3 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} />
+                                    <input type="time" className="border rounded-lg px-3 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} />
                                 </div>
-                                <div>
-                                    <label>Hora Fim:</label>
-                                    <input
-                                        type="time"
-                                        className="border p-2 rounded w-full"
-                                        value={horaFim}
-                                        onChange={(e) => setHoraFim(e.target.value)}
-                                    />
-                                </div>
-                                <div>
-                                    <label>Usuário:</label>
-                                    <select
-                                        className="border p-2 rounded w-full"
-                                        value={selectedUser}
-                                        onChange={(e) => setSelectedUser(e.target.value)}
-                                    >
-                                        <option value="">Selecione</option>
-                                        {usuarios.map((u) => (
-                                            <option key={u.id} value={u.id}>{u.nome}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label>Laboratório:</label>
-                                    <select
-                                        className="border p-2 rounded w-full"
-                                        value={selectedLab}
-                                        onChange={(e) => setSelectedLab(Number(e.target.value))}
-                                    >
-                                        <option value="">Selecione</option>
-                                        {laboratorios.map((l) => (
-                                            <option key={l.id} value={l.id}>{l.nome}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label>Semestre:</label>
-                                    <select
-                                        className="border p-2 rounded w-full"
-                                        value={selectedSemestre}
-                                        onChange={(e) => setSelectedSemestre(Number(e.target.value))}
-                                    >
-                                        <option value="">Selecione</option>
-                                        {semestres.map((s) => (
-                                            <option key={s.id} value={s.id}>{s.descricao}</option>
-                                        ))}
-                                    </select>
-                                </div>
+
+                                <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)}>
+                                    <option value="">Selecione o usuário</option>
+                                    {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.nome}</option>))}
+                                </select>
+
+                                <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedLab} onChange={(e) => setSelectedLab(Number(e.target.value))}>
+                                    <option value="">Selecione o laboratório</option>
+                                    {laboratorios.map((l) => (<option key={l.id} value={l.id}>{l.nome}</option>))}
+                                </select>
+
+                                <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedSemestre} onChange={(e) => setSelectedSemestre(Number(e.target.value))}>
+                                    <option value="">Selecione o semestre</option>
+                                    {semestres.map((s) => (<option key={s.id} value={s.id}>{s.descricao}</option>))}
+                                </select>
                             </div>
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter>
-                        <Button onClick={handleSalvarReserva}>Salvar Reserva</Button>
+                    <DialogFooter className="space-x-2">
+                        <Button onClick={handleSalvarReserva}>Salvar</Button>
                         <Button variant="ghost" onClick={() => setOpenDialogCadastro(false)}>Cancelar</Button>
                     </DialogFooter>
                 </DialogContent>
