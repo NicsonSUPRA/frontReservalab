@@ -274,8 +274,8 @@ export default function UsuarioPage() {
                         {notificacao && (
                             <div
                                 className={`p-4 rounded-lg border-l-4 shadow-lg ${notificacao.type === "success"
-                                        ? "border-l-green-500 bg-green-50 text-green-800"
-                                        : "border-l-red-500 bg-red-50 text-red-800"
+                                    ? "border-l-green-500 bg-green-50 text-green-800"
+                                    : "border-l-red-500 bg-red-50 text-red-800"
                                     }`}
                             >
                                 <div className="flex items-center gap-3">
@@ -350,8 +350,8 @@ export default function UsuarioPage() {
                                             onChange={handleChange}
                                             disabled={!editando}
                                             className={`w-full h-12 px-4 text-base rounded-lg border transition-all duration-300 ${!editando
-                                                    ? "bg-gray-100 text-gray-500 border-gray-200"
-                                                    : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
+                                                ? "bg-gray-100 text-gray-500 border-gray-200"
+                                                : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
                                                 }`}
                                             placeholder="Digite o nome completo"
                                         />
@@ -418,8 +418,8 @@ export default function UsuarioPage() {
                                             onChange={handleSenhaChange}
                                             disabled={!editando}
                                             className={`w-full h-12 px-4 text-base rounded-lg border transition-all duration-300 ${!editando
-                                                    ? "bg-gray-100 text-gray-500 border-gray-200"
-                                                    : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
+                                                ? "bg-gray-100 text-gray-500 border-gray-200"
+                                                : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
                                                 }`}
                                             placeholder="Digite a nova senha"
                                         />
@@ -450,8 +450,8 @@ export default function UsuarioPage() {
                                             onChange={handleRoleChange}
                                             disabled={!editando}
                                             className={`w-full h-12 px-4 text-base rounded-lg border transition-all duration-300 ${!editando
-                                                    ? "bg-gray-100 text-gray-500 border-gray-200"
-                                                    : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
+                                                ? "bg-gray-100 text-gray-500 border-gray-200"
+                                                : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
                                                 }`}
                                         >
                                             <option value="">Selecione um grupo</option>
