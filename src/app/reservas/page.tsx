@@ -79,17 +79,24 @@ export default function ReservasPage() {
     // -----------------------
     const fetchSelects = async () => {
         try {
-            const [resUsuarios, resLabs, resSemestres] = await Promise.all([
-                fetch(`${BASE_URL}/usuarios`, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined }),
-                fetch(`${BASE_URL}/laboratorios`, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined }),
-                fetch(`${BASE_URL}/semestre`, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined }),
+            const [resProfessores, resLabs, resSemestres] = await Promise.all([
+                fetch(`${BASE_URL}/usuarios/professores`, {
+                    headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
+                }),
+                fetch(`${BASE_URL}/laboratorios`, {
+                    headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
+                }),
+                fetch(`${BASE_URL}/semestre`, {
+                    headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
+                }),
             ]);
 
-            const usuariosData = await resUsuarios.json();
+            const professoresData = await resProfessores.json();
             const laboratoriosData = await resLabs.json();
             const semestresData = await resSemestres.json();
 
-            setUsuarios(Array.isArray(usuariosData) ? usuariosData : []);
+            // ✅ Define apenas professores (não todos os usuários)
+            setUsuarios(Array.isArray(professoresData) ? professoresData : []);
             setLaboratorios(Array.isArray(laboratoriosData) ? laboratoriosData : []);
             setSemestres(Array.isArray(semestresData) ? semestresData : []);
         } catch (err) {
@@ -97,6 +104,7 @@ export default function ReservasPage() {
             setErrorMessage("Erro ao buscar dados para o formulário");
         }
     };
+
 
     // Inicial: apenas fetch dos selects
     useEffect(() => {
