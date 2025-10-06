@@ -196,19 +196,47 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
                     </div>
                 </li>
 
-                {/* Reservas */}
+                {/* <li>
+                    <Link
+                        href="/reservas"
+                        onClick={() => setSidebarOpen(false)}
+                        className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg border border-blue-200 shadow-sm
+                        bg-white text-gray-700 hover:bg-blue-600 hover:text-white hover:shadow-md
+                        transition-all duration-200 font-semibold  ${pathname.startsWith("/reservas") && !pathname.startsWith("/reservas-fixas")
+                                ? "bg-blue-600 text-white shadow"
+                                : ""
+                            }`}
+                    >
+                        <PiCalendarBlankFill className="text-blue-600 group-hover:text-white transition-colors duration-200" />
+                        Reservas
+                    </Link>
+                </li> */}
+                {/* Reservas Fixas */}
                 <li>
                     <Link
                         href="/reservas"
                         onClick={() => setSidebarOpen(false)}
                         className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg border border-blue-200 shadow-sm
-            bg-white text-gray-700 hover:bg-blue-600 hover:text-white hover:shadow-md
-            transition-all duration-200 font-semibold ${pathname === "/reservas" ? "bg-blue-600 text-white shadow" : ""}`}
+                        bg-white text-gray-700 hover:bg-blue-600 hover:text-white hover:shadow-md
+                        transition-all duration-200 font-semibold ${pathname === "/reservas" ? "bg-blue-600 shadow" : ""}`}
                     >
                         <PiCalendarBlankFill className="text-blue-600 group-hover:text-white transition-colors duration-200" />
                         Reservas
                     </Link>
                 </li>
+                <li>
+                    <Link
+                        href="/reservas-fixas"
+                        onClick={() => setSidebarOpen(false)}
+                        className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg border border-blue-200 shadow-sm
+                        bg-white text-gray-700 hover:bg-blue-600 hover:text-white hover:shadow-md
+                        transition-all duration-200 font-semibold ${pathname === "/reservas-fixas" ? "bg-blue-600 shadow" : ""}`}
+                    >
+                        <PiCalendarBlankFill className="text-blue-600 group-hover:text-white transition-colors duration-200" />
+                        Reservas Fixas
+                    </Link>
+                </li>
+
             </ul>
         </aside>
     )
