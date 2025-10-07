@@ -9,6 +9,8 @@ type Notificacao = {
     message: string;
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL // ✅ domínio centralizado
+
 export default function CadastrarLaboratorioPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [nome, setNome] = useState("");
@@ -58,7 +60,7 @@ export default function CadastrarLaboratorioPage() {
         setLoading(true);
 
         try {
-            const res = await fetch(`http://localhost:8080/laboratorios`, {
+            const res = await fetch(`${API_URL}/laboratorios`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

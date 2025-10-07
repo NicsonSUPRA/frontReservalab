@@ -38,6 +38,8 @@ interface Reserva {
     semestre: Semestre;
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL // ✅ domínio centralizado
+
 export default function ReservasPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [reservas, setReservas] = useState<Reserva[]>([]);
@@ -63,7 +65,7 @@ export default function ReservasPage() {
     const calendarRef = useRef<any>(null);
 
     const TOKEN = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    const BASE_URL = "http://localhost:8080";
+    // const BASE_URL = "${API_URL}";
 
     const resetCadastroDialog = () => {
         setSelectedUser("");

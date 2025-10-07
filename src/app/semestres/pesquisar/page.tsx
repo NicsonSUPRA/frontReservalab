@@ -14,6 +14,8 @@ interface Semestre {
     dataFim: string;
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL // ✅ domínio centralizado
+
 export default function PesquisarSemestres() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [semestres, setSemestres] = useState<Semestre[]>([]);
@@ -48,7 +50,7 @@ export default function PesquisarSemestres() {
             if (ano) params.append("ano", String(ano));
             if (periodo) params.append("periodo", String(periodo));
 
-            const res = await fetch(`http://localhost:8080/semestre/pesquisar?${params.toString()}`, {
+            const res = await fetch(`${API_URL}/semestre/pesquisar?${params.toString()}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (!res.ok) throw new Error("Erro ao buscar semestres");

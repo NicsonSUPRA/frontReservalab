@@ -19,6 +19,8 @@ const ROLES = [
     { value: "ALUNO", label: "Aluno" },
 ]
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL // ✅ domínio centralizado
+
 export default function PesquisarUsuarios() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [usuarios, setUsuarios] = useState<Usuario[]>([])
@@ -58,12 +60,15 @@ export default function PesquisarUsuarios() {
             if (login) params.append("login", login)
             rolesSelecionadas.forEach((r) => params.append("roles", r))
 
-            const res = await fetch(`http://localhost:8080/usuarios/pesquisar?${params.toString()}`, {
+            const res = await fetch(`${API_URL}/usuarios/pesquisar?${params.toString()}`, {
                 headers: { Authorization: `Bearer ${token}` },
             })
+
             if (!res.ok) throw new Error("Erro ao buscar usuários")
+
             const data: Usuario[] = await res.json()
             setUsuarios(data)
+
             if (data.length === 0) setNotificacao("Nenhum usuário encontrado com esses filtros.")
         } catch (err) {
             console.error(err)
@@ -91,7 +96,7 @@ export default function PesquisarUsuarios() {
 
     return (
         <div className="flex min-h-screen font-sans bg-gray-50">
-            {/* Sidebar drawer: desliza em mobile, fixo em md+ */}
+            {/* Sidebar drawer */}
             <div
                 className={`fixed top-0 left-0 h-full w-64 z-50 transform transition-transform duration-300
                     ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
@@ -99,7 +104,7 @@ export default function PesquisarUsuarios() {
                 <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
             </div>
 
-            {/* Backdrop (fecha ao clicar) — apenas em mobile */}
+            {/* Backdrop */}
             {sidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black/30 z-40 md:hidden"
@@ -108,12 +113,10 @@ export default function PesquisarUsuarios() {
                 />
             )}
 
-            {/* Conteúdo principal deslocado em md+ para não ficar por baixo do sidebar */}
+            {/* Main content */}
             <div className="flex-1 flex flex-col min-h-screen md:pl-64">
-                {/* Top gradient header */}
                 <div className="bg-gradient-to-r from-indigo-600 via-sky-500 to-indigo-500 text-white py-5 px-4 sm:px-6 flex items-center justify-between shadow-lg">
                     <div className="flex items-center gap-4">
-                        {/* toggle: agora abre/fecha corretamente */}
                         <button
                             onClick={() => setSidebarOpen(!sidebarOpen)}
                             className="lg:hidden p-2 rounded-md bg-white/20 hover:bg-white/30 transition"

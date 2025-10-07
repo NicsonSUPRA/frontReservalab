@@ -11,6 +11,8 @@ interface Laboratorio {
 
 type Notificacao = { type: "success" | "error" | "info"; message: string } | null
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL // ✅ domínio centralizado
+
 export default function LaboratorioPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [laboratorio, setLaboratorio] = useState<Laboratorio | null>(null)
@@ -36,7 +38,7 @@ export default function LaboratorioPage() {
         const fetchLab = async () => {
             setLoading(true)
             try {
-                const res = await fetch(`http://localhost:8080/laboratorios/${id}`, {
+                const res = await fetch(`${API_URL}/laboratorios/${id}`, {
                     headers: { Authorization: `Bearer ${token}` },
                 })
                 if (!res.ok) throw new Error("Erro ao buscar laboratório")
@@ -79,7 +81,7 @@ export default function LaboratorioPage() {
 
         setSaving(true)
         try {
-            const res = await fetch(`http://localhost:8080/laboratorios?id=${laboratorio.id}`, {
+            const res = await fetch(`${API_URL}/laboratorios?id=${laboratorio.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ nome: laboratorio.nome }),
