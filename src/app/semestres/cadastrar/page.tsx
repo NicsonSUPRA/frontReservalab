@@ -9,6 +9,8 @@ type Notificacao = {
     message: string;
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL // ✅ domínio centralizado
+
 export default function CadastrarSemestrePage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [ano, setAno] = useState("");
@@ -80,7 +82,7 @@ export default function CadastrarSemestrePage() {
             // Transformar data para ISO com hora 00:00
             const formatDate = (date: string) => new Date(`${date}T00:00:00`).toISOString();
 
-            const res = await fetch(`http://localhost:8080/semestre`, {
+            const res = await fetch(`${API_URL}/semestre`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -254,8 +256,8 @@ export default function CadastrarSemestrePage() {
                                     type="submit"
                                     disabled={loading}
                                     className={`flex-1 inline-flex items-center justify-center gap-3 px-4 py-2 rounded-lg text-white font-semibold transition transform ${loading
-                                            ? "bg-indigo-400 cursor-wait"
-                                            : "bg-indigo-600 hover:scale-[1.02]"
+                                        ? "bg-indigo-400 cursor-wait"
+                                        : "bg-indigo-600 hover:scale-[1.02]"
                                         } `}
                                 >
                                     {loading && (
@@ -297,8 +299,8 @@ export default function CadastrarSemestrePage() {
                                 <div
                                     role="status"
                                     className={`mt-6 p-4 rounded-lg text-sm font-medium ${notificacao.type === "success"
-                                            ? "bg-green-50 text-green-800"
-                                            : "bg-red-50 text-red-800"
+                                        ? "bg-green-50 text-green-800"
+                                        : "bg-red-50 text-red-800"
                                         }`}
                                 >
                                     {notificacao.message}

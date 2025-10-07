@@ -10,6 +10,8 @@ interface Laboratorio {
     nome: string;
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL // ✅ domínio centralizado
+
 export default function PesquisarLaboratorios() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [laboratorios, setLaboratorios] = useState<Laboratorio[]>([]);
@@ -40,7 +42,7 @@ export default function PesquisarLaboratorios() {
             const params = new URLSearchParams();
             if (nome) params.append("nome", nome);
 
-            const res = await fetch(`http://localhost:8080/laboratorios/pesquisar?${params.toString()}`, {
+            const res = await fetch(`${API_URL}/laboratorios/pesquisar?${params.toString()}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (!res.ok) throw new Error("Erro ao buscar laboratórios");

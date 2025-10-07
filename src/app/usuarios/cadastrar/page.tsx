@@ -17,6 +17,8 @@ type Notificacao = {
     message: string;
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
 export default function CadastrarUsuarioPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [nome, setNome] = useState("");
@@ -77,7 +79,7 @@ export default function CadastrarUsuarioPage() {
         setLoading(true);
 
         try {
-            const res = await fetch(`http://localhost:8080/usuarios/cadastrar/${grupo}`, {
+            const res = await fetch(`${API_URL}/usuarios/cadastrar/${grupo}`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

@@ -35,6 +35,8 @@ interface ReservaFixa {
     status?: string;
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL // ✅ domínio centralizado
+
 export default function ReservasFixasPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [reservasFixas, setReservasFixas] = useState<ReservaFixa[]>([]);
@@ -58,7 +60,7 @@ export default function ReservasFixasPage() {
     const calendarRef = useRef<any>(null);
 
     const TOKEN = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    const BASE_URL = "http://localhost:8080";
+    // const BASE_URL = "http://localhost:8080";
 
     const resetCadastroDialog = () => {
         setSelectedUser("");

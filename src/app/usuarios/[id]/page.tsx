@@ -23,6 +23,8 @@ const ROLES = [
 
 type Notificacao = { type: "success" | "error" | "info"; message: string } | null
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL // ✅ domínio centralizado
+
 export default function UsuarioPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [usuario, setUsuario] = useState<Usuario | null>(null)
@@ -50,7 +52,7 @@ export default function UsuarioPage() {
         const fetchUsuario = async () => {
             setLoading(true)
             try {
-                const res = await fetch(`http://localhost:8080/usuarios/${id}`, {
+                const res = await fetch(`${API_URL}/usuarios/${id}`, {
                     headers: { Authorization: `Bearer ${token}` },
                 })
                 if (!res.ok) throw new Error("Erro ao buscar usuário")
@@ -106,7 +108,7 @@ export default function UsuarioPage() {
             if (senha) body.senha = senha
             body.roles = [roleSelecionada]
 
-            const res = await fetch(`http://localhost:8080/usuarios?id=${usuario.id}`, {
+            const res = await fetch(`${API_URL}/usuarios?id=${usuario.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify(body),

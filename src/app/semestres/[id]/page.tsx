@@ -13,6 +13,9 @@ interface Semestre {
     dataFim: string;
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL // ✅ domínio centralizado
+
+
 type Notificacao = { type: "success" | "error" | "info"; message: string } | null;
 
 export default function SemestrePage() {
@@ -44,7 +47,7 @@ export default function SemestrePage() {
         const fetchSemestre = async () => {
             setLoading(true);
             try {
-                const res = await fetch(`http://localhost:8080/semestre/${id}`, {
+                const res = await fetch(`${API_URL}/semestre/${id}`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 if (!res.ok) throw new Error("Erro ao buscar semestre");
@@ -99,7 +102,7 @@ export default function SemestrePage() {
 
         setSaving(true);
         try {
-            const res = await fetch(`http://localhost:8080/semestre/${semestre.id}`, {
+            const res = await fetch(`${API_URL}/semestre/${semestre.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
