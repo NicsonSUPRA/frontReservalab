@@ -4,6 +4,17 @@ import React, { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Sidebar from "../../components/Sidebar"
 
+// Função para decodificar JWT
+function parseJwt(token: string | null) {
+    if (!token) return null
+    try {
+        const base64 = token.split('.')[1]
+        return JSON.parse(atob(base64))
+    } catch (e) {
+        return null
+    }
+}
+
 interface Laboratorio {
     id: string
     nome: string
@@ -11,7 +22,7 @@ interface Laboratorio {
 
 type Notificacao = { type: "success" | "error" | "info"; message: string } | null
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL // ✅ domínio centralizado
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export default function LaboratorioPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -21,15 +32,27 @@ export default function LaboratorioPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [editando, setEditando] = useState(false)
+    const [roles, setRoles] = useState<string[]>([])
 
     const router = useRouter()
     const params = useParams()
     const id = (params as any)?.id as string | undefined
+
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null
 
     useEffect(() => {
         if (!token) router.push("/login")
     }, [router, token])
+
+    // Decodifica roles do JWT
+    useEffect(() => {
+        const decoded = parseJwt(token)
+        if (decoded?.roles && Array.isArray(decoded.roles)) {
+            setRoles(decoded.roles)
+        }
+    }, [token])
+
+    const podeEditar = roles.includes("ADMIN")
 
     useEffect(() => {
         if (!id || !token) return
@@ -55,9 +78,7 @@ export default function LaboratorioPage() {
         }
 
         fetchLab()
-        return () => {
-            mounted = false
-        }
+        return () => { mounted = false }
     }, [id, token])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,7 +102,7 @@ export default function LaboratorioPage() {
 
         setSaving(true)
         try {
-            const res = await fetch(`${API_URL}/laboratorios?id=${laboratorio.id}`, {
+            const res = await fetch(`${API_URL}/laboratorios/${laboratorio.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ nome: laboratorio.nome }),
@@ -110,8 +131,7 @@ export default function LaboratorioPage() {
     }
 
     const INPUT_CLASS =
-        "w-full h-12 px-4 text-base rounded-lg border transition-all duration-300 focus:outline-none" +
-        " bg-white border-gray-200"
+        "w-full h-12 px-4 text-base rounded-lg border transition-all duration-300 focus:outline-none bg-white border-gray-200"
 
     if (loading) {
         return (
@@ -138,16 +158,11 @@ export default function LaboratorioPage() {
             <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100 p-4">
                 <div className="w-full max-w-md bg-white/70 backdrop-blur-lg rounded-3xl shadow-2xl border border-white/20">
                     <div className="p-8 text-center">
-                        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-                            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                            </svg>
-                        </div>
                         <h2 className="text-xl font-semibold text-gray-800 mb-2">Laboratório não encontrado</h2>
                         <p className="text-gray-600 mb-4">Erro ao carregar os dados do laboratório.</p>
                         <button onClick={() => router.back()} className="w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">Voltar</button>
                     </div>
-                </div>pesquisar
+                </div>
             </div>
         )
     }
@@ -158,11 +173,6 @@ export default function LaboratorioPage() {
 
             <div className="flex-1 flex flex-col min-h-screen">
                 <header className="p-4 bg-white/70 backdrop-blur-lg md:hidden flex items-center shadow-lg sticky top-0 z-10 border-b border-white/20">
-                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-violet-600 hover:text-violet-700 hover:bg-violet-50 p-2 rounded-xl transition-colors">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
                     <h1 className="ml-3 font-bold text-lg text-gray-800">Sistema de Reservas</h1>
                 </header>
 
@@ -183,41 +193,27 @@ export default function LaboratorioPage() {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={() => { setEditando(true); setNotificacao(null) }}
-                                    className={`h-12 px-5 rounded-lg font-semibold shadow-lg transition transform ${!editando ? "bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700" : "bg-gray-100 text-gray-700"}`}
-                                >
-                                    Liberar edição
-                                </button>
-                            </div>
+                            {podeEditar && (
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => { setEditando(true); setNotificacao(null) }}
+                                        className="h-12 px-5 rounded-lg font-semibold shadow-lg transition transform bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700"
+                                    >
+                                        Liberar edição
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {notificacao && (
                             <div className={`p-4 rounded-lg border-l-4 shadow-lg ${notificacao.type === "success" ? "border-l-green-500 bg-green-50 text-green-800" : "border-l-red-500 bg-red-50 text-red-800"}`}>
-                                <div className="flex items-center gap-3">
-                                    {notificacao.type === "success" ? (
-                                        <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    ) : (
-                                        <svg className="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                        </svg>
-                                    )}
-                                    <span className="font-medium text-base">{notificacao.message}</span>
-                                </div>
+                                <span className="font-medium text-base">{notificacao.message}</span>
                             </div>
                         )}
 
                         <div className="bg-white/70 backdrop-blur-lg border border-white/20 shadow-2xl rounded-2xl overflow-hidden">
                             <div className="pb-6 bg-gradient-to-r from-violet-100 to-purple-100 border-b border-white/20 p-6">
                                 <h2 className="flex items-center gap-3 text-2xl font-bold text-gray-800">
-                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-violet-500 to-purple-600 flex items-center justify-center">
-                                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                                        </svg>
-                                    </div>
                                     Informações do Laboratório
                                 </h2>
                             </div>
@@ -226,9 +222,6 @@ export default function LaboratorioPage() {
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                     <div className="space-y-3">
                                         <label htmlFor="nome" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                                            <svg className="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8v8H8z" />
-                                            </svg>
                                             Nome do Laboratório
                                         </label>
                                         <input
@@ -236,93 +229,34 @@ export default function LaboratorioPage() {
                                             name="nome"
                                             value={laboratorio.nome}
                                             onChange={handleChange}
-                                            disabled={!editando}
-                                            className={`${INPUT_CLASS} ${!editando ? "bg-gray-100 text-gray-500 border-gray-200" : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"}`}
+                                            disabled={!editando || !podeEditar}
+                                            className={`${INPUT_CLASS} ${!editando || !podeEditar ? "bg-gray-100 text-gray-500 border-gray-200" : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"}`}
                                             placeholder="Digite o nome do laboratório"
-                                            aria-invalid={!laboratorio.nome || laboratorio.nome.trim() === ""}
                                         />
                                     </div>
-
-                                    {/* <div className="space-y-3">
-                                        <label className="text-sm font-semibold text-gray-700">Status</label>
-                                        <div className="h-12 px-4 flex items-center rounded-lg bg-gray-50 border border-gray-200">Visualização</div>
-                                    </div> */}
                                 </div>
 
-                                <div className="flex flex-col sm:flex-row gap-4 pt-8 border-t border-gray-200">
-                                    {!editando ? (
+                                {editando && podeEditar && (
+                                    <div className="flex flex-col sm:flex-row gap-4 pt-8 border-t border-gray-200">
                                         <button
-                                            onClick={() => { setEditando(true); setNotificacao(null) }}
-                                            className="bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 transition-all duration-300 flex items-center justify-center gap-3 h-12 px-6 text-base font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 rounded-lg"
+                                            onClick={handleAtualizar}
+                                            disabled={saving}
+                                            className="bg-gradient-to-r from-violet-500 to-purple-600 text-white flex-1 h-12 px-6 text-base font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
                                         >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                            </svg>
-                                            Editar Informações
+                                            {saving ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : "Salvar Alterações"}
                                         </button>
-                                    ) : (
-                                        <>
-                                            <button
-                                                onClick={handleAtualizar}
-                                                disabled={saving}
-                                                className={`bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 transition-all duration-300 flex items-center justify-center gap-3 flex-1 h-12 px-6 text-base font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none rounded-lg disabled:opacity-50`}
-                                            >
-                                                {saving ? (
-                                                    <>
-                                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                                        Salvando...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
-                                                        </svg>
-                                                        Salvar Alterações
-                                                    </>
-                                                )}
-                                            </button>
 
-                                            <button
-                                                onClick={handleCancelar}
-                                                disabled={saving}
-                                                className="border border-gray-300 hover:bg-gray-50 text-gray-700 flex items-center justify-center gap-3 flex-1 h-12 px-6 text-base font-semibold transition-all duration-300 hover:shadow-md rounded-lg disabled:opacity-50"
-                                            >
-                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                                Cancelar
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
+                                        <button
+                                            onClick={handleCancelar}
+                                            disabled={saving}
+                                            className="border border-gray-300 hover:bg-gray-50 text-gray-700 flex-1 h-12 px-6 text-base font-semibold rounded-lg transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
-
-                        <div className="bg-white/70 backdrop-blur-lg border border-white/20 shadow-xl rounded-2xl">
-                            <div className="bg-gradient-to-r from-purple-100 to-violet-100 border-b border-white/20 p-6">
-                                <h3 className="text-xl font-bold flex items-center gap-3 text-gray-800">
-                                    <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-purple-500 to-violet-600 flex items-center justify-center">
-                                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                                        </svg>
-                                    </div>
-                                    Pré-visualização do Laboratório
-                                </h3>
-                            </div>
-
-                            <div className="p-6">
-                                <div className="flex items-center gap-6 p-6 bg-gradient-to-r from-gray-50 via-purple-50 to-violet-50 rounded-xl border border-gray-200">
-                                    <div className="w-16 h-16 border-3 border-violet-200 shadow-lg rounded-full bg-gradient-to-r from-purple-500 to-violet-600 flex items-center justify-center">
-                                        <span className="text-white font-bold text-lg">{laboratorio.nome?.split(" ").map((p) => p[0]).slice(0, 2).join("") || "LB"}</span>
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="font-bold text-xl text-gray-800 mb-1">{laboratorio.nome || "Nome não definido"}</h4>
-                                        <div className="text-gray-600 text-sm">ID: <span className="font-mono text-sm text-gray-500">{laboratorio.id}</span></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
                     </div>
                 </main>
             </div>

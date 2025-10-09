@@ -38,7 +38,7 @@ interface Reserva {
     semestre: Semestre;
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL // ✅ domínio centralizado
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function ReservasPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -61,11 +61,10 @@ export default function ReservasPage() {
     const [horaFim, setHoraFim] = useState<string>("10:00");
 
     const [errorMessage, setErrorMessage] = useState<string>("");
+    const [roles, setRoles] = useState<string[]>([]); // ✅ novo estado
 
     const calendarRef = useRef<any>(null);
-
     const TOKEN = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    // const BASE_URL = "${API_URL}";
 
     const resetCadastroDialog = () => {
         setSelectedUser("");
@@ -77,7 +76,36 @@ export default function ReservasPage() {
     };
 
     // -----------------------
-    // Fetch selects (usuarios, labs, semestres)
+    // Decode JWT
+    // -----------------------
+    function parseJwt(token: string | null) {
+        if (!token) return null;
+        try {
+            const base64 = token.split(".")[1];
+            return JSON.parse(atob(base64));
+        } catch {
+            return null;
+        }
+    }
+
+    useEffect(() => {
+        const decoded = parseJwt(TOKEN);
+        if (decoded?.roles) {
+            const rolesArray = Array.isArray(decoded.roles)
+                ? decoded.roles
+                : [decoded.roles];
+            setRoles(rolesArray);
+        } else if (decoded?.authorities) {
+            setRoles(decoded.authorities);
+        }
+    }, [TOKEN]);
+
+    const podeCadastrarReserva = roles.some((r) =>
+        ["ADMIN", "PROF", "PROF_COMP"].includes(r.toUpperCase())
+    );
+
+    // -----------------------
+    // Fetch selects
     // -----------------------
     const fetchSelects = async () => {
         try {
@@ -97,7 +125,6 @@ export default function ReservasPage() {
             const laboratoriosData = await resLabs.json();
             const semestresData = await resSemestres.json();
 
-            // ✅ Define apenas professores (não todos os usuários)
             setUsuarios(Array.isArray(professoresData) ? professoresData : []);
             setLaboratorios(Array.isArray(laboratoriosData) ? laboratoriosData : []);
             setSemestres(Array.isArray(semestresData) ? semestresData : []);
@@ -107,14 +134,12 @@ export default function ReservasPage() {
         }
     };
 
-
-    // Inicial: apenas fetch dos selects
     useEffect(() => {
         fetchSelects();
     }, []);
 
     // -----------------------
-    // Buscar reservas por laboratório
+    // Buscar reservas
     // -----------------------
     const fetchReservasPorLab = async (labId: number | "", dataInicioParam?: string, dataFimParam?: string) => {
         if (!labId) {
@@ -140,12 +165,8 @@ export default function ReservasPage() {
         }
     };
 
-    // -----------------------
-    // Mapear reservas para eventos FullCalendar
-    // -----------------------
     const mapReservasParaEventos = (lista: Reserva[]): EventInput[] => {
         if (!Array.isArray(lista)) return [];
-
         return lista.flatMap((reserva) => {
             const color =
                 reserva.status === "APROVADA"
@@ -158,7 +179,6 @@ export default function ReservasPage() {
 
             const outputs: EventInput[] = [];
 
-            // Recorrente / fixa
             if (!reserva.dataInicio && reserva.diaSemana !== null && reserva.horaInicio) {
                 const dayForFullCalendar = Number(reserva.diaSemana) % 7;
                 outputs.push({
@@ -174,7 +194,6 @@ export default function ReservasPage() {
                 });
             }
 
-            // Evento normal com data
             if (reserva.dataInicio) {
                 const safeIso = encodeURIComponent(new Date(reserva.dataInicio).toISOString());
                 outputs.push({
@@ -196,9 +215,6 @@ export default function ReservasPage() {
         setEventsState(mapReservasParaEventos(reservas));
     }, [reservas]);
 
-    // -----------------------
-    // Cliques / Interações
-    // -----------------------
     const handleEventClick = (clickInfo: any) => {
         const ext = clickInfo.event.extendedProps;
         if (ext && ext.reserva) setSelectedReserva(ext.reserva as Reserva);
@@ -207,6 +223,7 @@ export default function ReservasPage() {
     };
 
     const handleDateClick = (info: any) => {
+        if (!podeCadastrarReserva) return; // ✅ bloqueia abertura pra quem não pode
         setDataSelecionada(info.dateStr.split("T")[0]);
         setOpenDialogCadastro(true);
     };
@@ -248,7 +265,7 @@ export default function ReservasPage() {
     };
 
     const renderEventContent = (eventInfo: any) => {
-        const { event, view } = eventInfo;
+        const { event } = eventInfo;
         const startHour = event.start?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) ?? "";
         const endHour = event.end?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) ?? "";
         const bgColor = event.backgroundColor ?? "#6366f1";
@@ -273,7 +290,6 @@ export default function ReservasPage() {
 
                 <main className="flex-1 p-3 sm:p-6 md:p-8 w-full">
                     <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100">
-
                         {/* Barra de filtros */}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
                             <select
@@ -347,43 +363,45 @@ export default function ReservasPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Dialog cadastro */}
-            <Dialog open={openDialogCadastro} onOpenChange={(open) => { setOpenDialogCadastro(open); if (!open) resetCadastroDialog(); }}>
-                <DialogContent className="max-w-md rounded-xl">
-                    <DialogHeader>
-                        <DialogTitle>Nova Reserva</DialogTitle>
-                        <DialogDescription asChild>
-                            <div className="space-y-3 mt-2">
-                                {dataSelecionada && <div className="p-2 bg-gray-100 rounded">Data selecionada: {dataSelecionada}</div>}
+            {/* ✅ Dialog cadastro — só aparece se o usuário tiver permissão */}
+            {podeCadastrarReserva && (
+                <Dialog open={openDialogCadastro} onOpenChange={(open) => { setOpenDialogCadastro(open); if (!open) resetCadastroDialog(); }}>
+                    <DialogContent className="max-w-md rounded-xl">
+                        <DialogHeader>
+                            <DialogTitle>Nova Reserva</DialogTitle>
+                            <DialogDescription asChild>
+                                <div className="space-y-3 mt-2">
+                                    {dataSelecionada && <div className="p-2 bg-gray-100 rounded">Data selecionada: {dataSelecionada}</div>}
 
-                                <div className="flex gap-2">
-                                    <input type="time" className="border rounded-lg px-3 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} />
-                                    <input type="time" className="border rounded-lg px-3 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} />
+                                    <div className="flex gap-2">
+                                        <input type="time" className="border rounded-lg px-3 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} />
+                                        <input type="time" className="border rounded-lg px-3 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} />
+                                    </div>
+
+                                    <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)}>
+                                        <option value="">Selecione o usuário</option>
+                                        {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.nome}</option>))}
+                                    </select>
+
+                                    <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedLab} onChange={(e) => setSelectedLab(Number(e.target.value))}>
+                                        <option value="">Selecione o laboratório</option>
+                                        {laboratorios.map((l) => (<option key={l.id} value={l.id}>{l.nome}</option>))}
+                                    </select>
+
+                                    <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedSemestre} onChange={(e) => setSelectedSemestre(Number(e.target.value))}>
+                                        <option value="">Selecione o semestre</option>
+                                        {semestres.map((s) => (<option key={s.id} value={s.id}>{s.descricao}</option>))}
+                                    </select>
                                 </div>
-
-                                <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)}>
-                                    <option value="">Selecione o usuário</option>
-                                    {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.nome}</option>))}
-                                </select>
-
-                                <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedLab} onChange={(e) => setSelectedLab(Number(e.target.value))}>
-                                    <option value="">Selecione o laboratório</option>
-                                    {laboratorios.map((l) => (<option key={l.id} value={l.id}>{l.nome}</option>))}
-                                </select>
-
-                                <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedSemestre} onChange={(e) => setSelectedSemestre(Number(e.target.value))}>
-                                    <option value="">Selecione o semestre</option>
-                                    {semestres.map((s) => (<option key={s.id} value={s.id}>{s.descricao}</option>))}
-                                </select>
-                            </div>
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="space-x-2">
-                        <Button onClick={handleSalvarReserva}>Salvar</Button>
-                        <Button variant="ghost" onClick={() => setOpenDialogCadastro(false)}>Cancelar</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="space-x-2">
+                            <Button onClick={handleSalvarReserva}>Salvar</Button>
+                            <Button variant="ghost" onClick={() => setOpenDialogCadastro(false)}>Cancelar</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            )}
 
             <ErrorAlert message={errorMessage} onClose={() => setErrorMessage("")} />
         </div>
