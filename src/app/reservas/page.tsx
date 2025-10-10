@@ -61,7 +61,7 @@ export default function ReservasPage() {
     const [horaFim, setHoraFim] = useState<string>("10:00");
 
     const [errorMessage, setErrorMessage] = useState<string>("");
-    const [roles, setRoles] = useState<string[]>([]); // ✅ novo estado
+    const [roles, setRoles] = useState<string[]>([]);
 
     const calendarRef = useRef<any>(null);
     const TOKEN = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -223,7 +223,7 @@ export default function ReservasPage() {
     };
 
     const handleDateClick = (info: any) => {
-        if (!podeCadastrarReserva) return; // ✅ bloqueia abertura pra quem não pode
+        if (!podeCadastrarReserva) return;
         setDataSelecionada(info.dateStr.split("T")[0]);
         setOpenDialogCadastro(true);
     };
@@ -261,6 +261,48 @@ export default function ReservasPage() {
             setOpenDialogCadastro(false);
             resetCadastroDialog();
             setErrorMessage("Erro de conexão com o servidor");
+        }
+    };
+
+    // -----------------------
+    // Função para cancelar reserva (adicionada)
+    // -----------------------
+    const handleCancelarReserva = async () => {
+        if (!selectedReserva) return;
+        try {
+            const res = await fetch(`${BASE_URL}/reserva/${selectedReserva.id}/cancelar`, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${TOKEN}`,
+                    "Content-Type": "application/json",
+                },
+            });
+
+            if (!res.ok) {
+                // tenta ler mensagem de erro do backend se houver
+                let errMsg = "Erro ao cancelar reserva";
+                try {
+                    const text = await res.text();
+                    const data = text ? JSON.parse(text) : null;
+                    errMsg = data?.message || data?.error || errMsg;
+                } catch {
+                    // ignore parse
+                }
+                setErrorMessage(errMsg);
+                return;
+            }
+
+            // atualiza calendário
+            if (selectedReserva.laboratorio?.id) {
+                fetchReservasPorLab(selectedReserva.laboratorio.id);
+            }
+
+            // fecha dialog
+            setSelectedReserva(null);
+            setOpenDialogDetalhes(false);
+        } catch (err) {
+            console.error("Erro ao cancelar reserva", err);
+            setErrorMessage("Erro ao cancelar reserva");
         }
     };
 
@@ -357,8 +399,14 @@ export default function ReservasPage() {
                             </div>
                         </DialogDescription>
                     </DialogHeader>
-                    <DialogFooter>
+                    <DialogFooter className="flex justify-between">
                         <Button onClick={() => setOpenDialogDetalhes(false)}>Fechar</Button>
+
+                        {selectedReserva?.tipo === "NORMAL" && selectedReserva?.status !== "CANCELADA" && (
+                            <Button variant="destructive" onClick={handleCancelarReserva}>
+                                Cancelar Reserva
+                            </Button>
+                        )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
