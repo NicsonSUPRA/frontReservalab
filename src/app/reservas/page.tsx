@@ -265,7 +265,7 @@ export default function ReservasPage() {
     };
 
     // -----------------------
-    // Função para cancelar reserva (adicionada)
+    // Função para cancelar reserva NORMAL
     // -----------------------
     const handleCancelarReserva = async () => {
         if (!selectedReserva) return;
@@ -279,30 +279,71 @@ export default function ReservasPage() {
             });
 
             if (!res.ok) {
-                // tenta ler mensagem de erro do backend se houver
                 let errMsg = "Erro ao cancelar reserva";
                 try {
                     const text = await res.text();
                     const data = text ? JSON.parse(text) : null;
                     errMsg = data?.message || data?.error || errMsg;
-                } catch {
-                    // ignore parse
-                }
+                } catch { }
                 setErrorMessage(errMsg);
                 return;
             }
 
-            // atualiza calendário
             if (selectedReserva.laboratorio?.id) {
                 fetchReservasPorLab(selectedReserva.laboratorio.id);
             }
 
-            // fecha dialog
             setSelectedReserva(null);
             setOpenDialogDetalhes(false);
         } catch (err) {
             console.error("Erro ao cancelar reserva", err);
             setErrorMessage("Erro ao cancelar reserva");
+        }
+    };
+
+    // -----------------------
+    // Função para cancelar reserva FIXA
+    // -----------------------
+    const handleCancelarReservaFixa = async () => {
+        if (!selectedReserva) return;
+
+        try {
+            const body = {
+                reservaFixaId: selectedReserva.id,
+                data: selectedReserva.dataInicio?.split("T")[0],
+                tipo: "CANCELADA",
+                motivo: "Cancelamento via Front"
+            };
+
+            const res = await fetch(`${BASE_URL}/reserva/fixa/excecao/cancelar`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${TOKEN}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(body),
+            });
+
+            if (!res.ok) {
+                let errMsg = "Erro ao cancelar reserva fixa";
+                try {
+                    const text = await res.text();
+                    const data = text ? JSON.parse(text) : null;
+                    errMsg = data?.message || data?.error || errMsg;
+                } catch { }
+                setErrorMessage(errMsg);
+                return;
+            }
+
+            if (selectedReserva.laboratorio?.id) {
+                fetchReservasPorLab(selectedReserva.laboratorio.id);
+            }
+
+            setSelectedReserva(null);
+            setOpenDialogDetalhes(false);
+        } catch (err) {
+            console.error("Erro ao cancelar reserva fixa", err);
+            setErrorMessage("Erro ao cancelar reserva fixa");
         }
     };
 
@@ -402,16 +443,24 @@ export default function ReservasPage() {
                     <DialogFooter className="flex justify-between">
                         <Button onClick={() => setOpenDialogDetalhes(false)}>Fechar</Button>
 
-                        {selectedReserva?.tipo === "NORMAL" && selectedReserva?.status !== "CANCELADA" && (
-                            <Button variant="destructive" onClick={handleCancelarReserva}>
-                                Cancelar Reserva
-                            </Button>
+                        {selectedReserva?.status !== "CANCELADA" && (
+                            <>
+                                {selectedReserva?.tipo === "NORMAL" ? (
+                                    <Button variant="destructive" onClick={handleCancelarReserva}>
+                                        Cancelar Reserva
+                                    </Button>
+                                ) : selectedReserva?.tipo === "FIXA" ? (
+                                    <Button variant="destructive" onClick={handleCancelarReservaFixa}>
+                                        Cancelar Reserva Fixa
+                                    </Button>
+                                ) : null}
+                            </>
                         )}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* ✅ Dialog cadastro — só aparece se o usuário tiver permissão */}
+            {/* Dialog cadastro — só aparece se o usuário tiver permissão */}
             {podeCadastrarReserva && (
                 <Dialog open={openDialogCadastro} onOpenChange={(open) => { setOpenDialogCadastro(open); if (!open) resetCadastroDialog(); }}>
                     <DialogContent className="max-w-md rounded-xl">
