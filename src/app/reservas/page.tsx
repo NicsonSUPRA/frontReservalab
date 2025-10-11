@@ -496,11 +496,13 @@ export default function ReservasPage() {
                                 </>
                             )}
 
-                            {roles.includes("ADMIN") && selectedReserva?.status !== "APROVADA" && (
-                                <Button variant="secondary" onClick={handleAprovarReserva}>
-                                    Aprovar Reserva
-                                </Button>
-                            )}
+                            {roles.includes("ADMIN") &&
+                                selectedReserva?.tipo === "NORMAL" &&
+                                selectedReserva?.status !== "APROVADA" && (
+                                    <Button variant="secondary" onClick={handleAprovarReserva}>
+                                        Aprovar Reserva
+                                    </Button>
+                                )}
                         </div>
                     </DialogFooter>
                 </DialogContent>
@@ -526,9 +528,16 @@ export default function ReservasPage() {
                                         {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.nome}</option>))}
                                     </select>
 
-                                    <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedLab} onChange={(e) => setSelectedLab(Number(e.target.value))}>
-                                        <option value="">Selecione o laboratório</option>
-                                        {laboratorios.map((l) => (<option key={l.id} value={l.id}>{l.nome}</option>))}
+                                    <select
+                                        className="border rounded-lg px-3 py-2 w-full bg-gray-100 cursor-not-allowed"
+                                        value={selectedLab}
+                                        disabled
+                                    >
+                                        <option value="">
+                                            {selectedLab
+                                                ? laboratorios.find((l) => l.id === selectedLab)?.nome || "Laboratório selecionado"
+                                                : "Nenhum laboratório selecionado"}
+                                        </option>
                                     </select>
 
                                     <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedSemestre} onChange={(e) => setSelectedSemestre(Number(e.target.value))}>
