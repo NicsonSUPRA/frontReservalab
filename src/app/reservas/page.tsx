@@ -57,6 +57,7 @@ export default function ReservasPage() {
     const [selectedUser, setSelectedUser] = useState<string>("");
     const [selectedLab, setSelectedLab] = useState<number | "">("");
     const [selectedSemestre, setSelectedSemestre] = useState<number | "">("");
+    const [semestreEncontrado, setSemestreEncontrado] = useState<Semestre | null>(null);
     const [horaInicio, setHoraInicio] = useState<string>("08:00");
     const [horaFim, setHoraFim] = useState<string>("10:00");
 
@@ -68,8 +69,9 @@ export default function ReservasPage() {
 
     const resetCadastroDialog = () => {
         setSelectedUser("");
-        setSelectedLab("");
+        // manteve selectedLab para não perder o laboratório pesquisado no topo
         setSelectedSemestre("");
+        setSemestreEncontrado(null);
         setHoraInicio("08:00");
         setHoraFim("10:00");
         setDataSelecionada("");
@@ -222,14 +224,53 @@ export default function ReservasPage() {
         setOpenDialogDetalhes(true);
     };
 
-    const handleDateClick = (info: any) => {
+    // -----------------------
+    // Buscar semestre por data (chama o endpoint que você criou)
+    // -----------------------
+    const fetchSemestrePorData = async (data: string) => {
+        if (!data) return null;
+        try {
+            const param = encodeURIComponent(`${data}T00:00:00`);
+            const res = await fetch(`${BASE_URL}/semestre/por-data?data=${param}`, {
+                headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
+            });
+
+            if (!res.ok) {
+                setSelectedSemestre("");
+                setSemestreEncontrado(null);
+                return null;
+            }
+
+            const semestre = await res.json();
+            setSelectedSemestre(semestre?.id || "");
+            setSemestreEncontrado(semestre || null);
+            return semestre;
+        } catch (err) {
+            console.error("Erro ao buscar semestre por data", err);
+            setSelectedSemestre("");
+            setSemestreEncontrado(null);
+            return null;
+        }
+    };
+
+    const handleDateClick = async (info: any) => {
         if (!podeCadastrarReserva) return;
-        setDataSelecionada(info.dateStr.split("T")[0]);
+        const data = info.dateStr.split("T")[0];
+        setDataSelecionada(data);
+
+        // busca semestre automaticamente e preenche o select (não-editável)
+        await fetchSemestrePorData(data);
+
         setOpenDialogCadastro(true);
     };
 
     const handleSalvarReserva = async () => {
         try {
+            if (!selectedSemestre) {
+                setErrorMessage("Nenhum semestre válido para a data selecionada.");
+                return;
+            }
+
             const body = {
                 usuarioId: selectedUser,
                 laboratorioId: selectedLab,
@@ -265,7 +306,7 @@ export default function ReservasPage() {
     };
 
     // -----------------------
-    // Função para cancelar reserva NORMAL
+    // Cancelar / Aprovar (mantive seu código)
     // -----------------------
     const handleCancelarReserva = async () => {
         if (!selectedReserva) return;
@@ -301,9 +342,6 @@ export default function ReservasPage() {
         }
     };
 
-    // -----------------------
-    // Função para cancelar reserva FIXA
-    // -----------------------
     const handleCancelarReservaFixa = async () => {
         if (!selectedReserva) return;
 
@@ -347,9 +385,6 @@ export default function ReservasPage() {
         }
     };
 
-    // -----------------------
-    // Função para aprovar reserva (somente ADMIN)
-    // -----------------------
     const handleAprovarReserva = async () => {
         if (!selectedReserva) return;
 
@@ -523,7 +558,7 @@ export default function ReservasPage() {
                                         <input type="time" className="border rounded-lg px-3 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} />
                                     </div>
 
-                                    <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)}>
+                                    <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} required aria-required="true">
                                         <option value="">Selecione o usuário</option>
                                         {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.nome}</option>))}
                                     </select>
@@ -540,7 +575,23 @@ export default function ReservasPage() {
                                         </option>
                                     </select>
 
-                                    <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedSemestre} onChange={(e) => setSelectedSemestre(Number(e.target.value))}>
+                                    {/* Semestre NÃO selecionável — preenchido pela consulta por data */}
+                                    <select
+                                        className="border rounded-lg px-3 py-2 w-full bg-gray-100 cursor-not-allowed"
+                                        value={selectedSemestre}
+                                        disabled
+                                    >
+                                        <option value="">
+                                            {semestreEncontrado
+                                                ? semestreEncontrado.descricao || `${semestreEncontrado.dataInicio} - ${semestreEncontrado.dataFim}`
+                                                : (selectedSemestre
+                                                    ? semestres.find((s) => s.id === selectedSemestre)?.descricao || "Semestre selecionado"
+                                                    : "Nenhum semestre encontrado")}
+                                        </option>
+                                    </select>
+
+                                    <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedSemestre} onChange={(e) => setSelectedSemestre(Number(e.target.value))} style={{ display: 'none' }}>
+                                        {/* Mantive o select original (escondido) para compatibilidade, mas o usuário não vê ele */}
                                         <option value="">Selecione o semestre</option>
                                         {semestres.map((s) => (<option key={s.id} value={s.id}>{s.descricao}</option>))}
                                     </select>
@@ -548,7 +599,7 @@ export default function ReservasPage() {
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter className="space-x-2">
-                            <Button onClick={handleSalvarReserva}>Salvar</Button>
+                            <Button onClick={handleSalvarReserva} disabled={!selectedSemestre}>Salvar</Button>
                             <Button variant="ghost" onClick={() => setOpenDialogCadastro(false)}>Cancelar</Button>
                         </DialogFooter>
                     </DialogContent>
