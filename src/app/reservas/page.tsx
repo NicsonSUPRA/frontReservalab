@@ -347,6 +347,44 @@ export default function ReservasPage() {
         }
     };
 
+    // -----------------------
+    // Função para aprovar reserva (somente ADMIN)
+    // -----------------------
+    const handleAprovarReserva = async () => {
+        if (!selectedReserva) return;
+
+        try {
+            const res = await fetch(`${BASE_URL}/reserva/${selectedReserva.id}/aprovar`, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${TOKEN}`,
+                    "Content-Type": "application/json",
+                },
+            });
+
+            if (!res.ok) {
+                let errMsg = "Erro ao aprovar reserva";
+                try {
+                    const text = await res.text();
+                    const data = text ? JSON.parse(text) : null;
+                    errMsg = data?.message || data?.error || errMsg;
+                } catch { }
+                setErrorMessage(errMsg);
+                return;
+            }
+
+            if (selectedReserva.laboratorio?.id) {
+                fetchReservasPorLab(selectedReserva.laboratorio.id);
+            }
+
+            setSelectedReserva(null);
+            setOpenDialogDetalhes(false);
+        } catch (err) {
+            console.error("Erro ao aprovar reserva", err);
+            setErrorMessage("Erro ao aprovar reserva");
+        }
+    };
+
     const renderEventContent = (eventInfo: any) => {
         const { event } = eventInfo;
         const startHour = event.start?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) ?? "";
@@ -443,19 +481,27 @@ export default function ReservasPage() {
                     <DialogFooter className="flex justify-between">
                         <Button onClick={() => setOpenDialogDetalhes(false)}>Fechar</Button>
 
-                        {selectedReserva?.status !== "CANCELADA" && (
-                            <>
-                                {selectedReserva?.tipo === "NORMAL" ? (
-                                    <Button variant="destructive" onClick={handleCancelarReserva}>
-                                        Cancelar Reserva
-                                    </Button>
-                                ) : selectedReserva?.tipo === "FIXA" ? (
-                                    <Button variant="destructive" onClick={handleCancelarReservaFixa}>
-                                        Cancelar Reserva Fixa
-                                    </Button>
-                                ) : null}
-                            </>
-                        )}
+                        <div className="flex gap-2">
+                            {selectedReserva?.status !== "CANCELADA" && (
+                                <>
+                                    {selectedReserva?.tipo === "NORMAL" ? (
+                                        <Button variant="destructive" onClick={handleCancelarReserva}>
+                                            Cancelar Reserva
+                                        </Button>
+                                    ) : selectedReserva?.tipo === "FIXA" ? (
+                                        <Button variant="destructive" onClick={handleCancelarReservaFixa}>
+                                            Cancelar Reserva Fixa
+                                        </Button>
+                                    ) : null}
+                                </>
+                            )}
+
+                            {roles.includes("ADMIN") && selectedReserva?.status !== "APROVADA" && (
+                                <Button variant="secondary" onClick={handleAprovarReserva}>
+                                    Aprovar Reserva
+                                </Button>
+                            )}
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

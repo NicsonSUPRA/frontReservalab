@@ -33,6 +33,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
 
     // Roles que não podem acessar Usuários
     const restrictedRoles = ["ALUNO", "PROF", "PROF_COMP", "FUNCIONARIO"]
+    const rolesForReservasFixas = ["ADMIN", "PROF_COMP"]
 
     // Pegar role do usuário logado
     useEffect(() => {
@@ -45,7 +46,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
 
     const canAccessUsers = role && !restrictedRoles.includes(role)
     const canCadastrar = role && !restrictedRoles.includes(role)
-    const canViewReservasFixas = role === "ADMIN"
+    const canViewReservasFixas = role && rolesForReservasFixas.includes(role)
 
     return (
         <aside
