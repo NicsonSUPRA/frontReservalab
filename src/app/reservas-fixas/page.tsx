@@ -1,3 +1,4 @@
+// src/app/reservas/ReservasFixasPage.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -5,7 +6,9 @@ import FullCalendar from "@fullcalendar/react";
 import { EventInput } from "@fullcalendar/core";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import ptBrLocale from "@fullcalendar/core/locales/pt-br";
 import Sidebar from "../components/Sidebar";
+import { Menu } from "lucide-react";
 
 import {
     Dialog,
@@ -25,7 +28,7 @@ interface ReservaFixa {
     id: number;
     dataInicio: string;
     dataFim: string;
-    diaSemana: number | null; // 0=domingo, 1=segunda ...
+    diaSemana: number | null;
     horaInicio: string | null;
     horaFim: string | null;
     usuario: Usuario;
@@ -35,7 +38,7 @@ interface ReservaFixa {
     status?: string;
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL // ✅ domínio centralizado
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function ReservasFixasPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -58,9 +61,7 @@ export default function ReservasFixasPage() {
     const [errorMessage, setErrorMessage] = useState<string>("");
 
     const calendarRef = useRef<any>(null);
-
     const TOKEN = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    // const BASE_URL = "http://localhost:8080";
 
     const resetCadastroDialog = () => {
         setSelectedUser("");
@@ -71,9 +72,6 @@ export default function ReservasFixasPage() {
         setHoraFim("10:00");
     };
 
-    // -----------------------
-    // Fetch selects (usuarios, laboratorios, semestres)
-    // -----------------------
     const fetchSelects = async () => {
         try {
             const [resProfessores, resLabs, resSemestres] = await Promise.all([
@@ -99,39 +97,42 @@ export default function ReservasFixasPage() {
         fetchSelects();
     }, []);
 
-    // -----------------------
-    // Buscar reservas fixas
-    // -----------------------
-    const fetchReservasFixas = async () => {
+    const fetchTodasReservasFixas = async () => {
         if (!selectedLab) return;
         setLoading(true);
-
         try {
             const today = new Date();
-            const startOfWeek = new Date(today);
-            startOfWeek.setDate(today.getDate() - today.getDay()); // domingo
-            const endOfWeek = new Date(startOfWeek);
-            endOfWeek.setDate(startOfWeek.getDate() + 6); // sábado
 
+            // Calcula início e fim da semana
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+            // Formata para ISO sem milissegundos
             const dataInicioStr = startOfWeek.toISOString().slice(0, 19);
             const dataFimStr = endOfWeek.toISOString().slice(0, 19);
 
-            console.log("URL:", `${BASE_URL}/reserva/laboratorio/${selectedLab}/periodo/fixas?dataInicio=${dataInicioStr}&dataFim=${dataFimStr}`);
-            console.log("TOKEN:", `Bearer ${TOKEN}`);
-            console.log("CURL equivalente:");
-            console.log(`curl -X GET "${BASE_URL}/reserva/laboratorio/${selectedLab}/periodo/fixas?dataInicio=${dataInicioStr}&dataFim=${dataFimStr}" -H "Authorization: Bearer ${TOKEN}"`);
+            // URL do novo endpoint
+            const url = `${BASE_URL}/reserva/laboratorio/${selectedLab}/periodo/fixas/todas?dataInicio=${dataInicioStr}&dataFim=${dataFimStr}`;
 
-            const res = await fetch(`${BASE_URL}/reserva/laboratorio/${selectedLab}/periodo/fixas?dataInicio=${dataInicioStr}&dataFim=${dataFimStr}`, {
+            // Monta o curl equivalente para debug
+            const curlCommand = `
+    curl -X GET "${url}" \\
+    -H "Content-Type: application/json"${TOKEN ? ` \\\n-H "Authorization: Bearer ${TOKEN}"` : ""}`;
+            console.log("🔍 CURL equivalente:\n", curlCommand);
+
+            // Executa o fetch real
+            const res = await fetch(url, {
                 headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
             });
 
             const text = await res.text();
             const data: ReservaFixa[] = text ? JSON.parse(text) : [];
-            console.log("Dados brutos do backend:", data);
             setReservasFixas(Array.isArray(data) ? data : []);
         } catch (err) {
-            console.error("Erro ao carregar reservas fixas:", err);
-            setErrorMessage("Erro ao carregar reservas fixas");
+            console.error("Erro ao carregar todas reservas fixas:", err);
+            setErrorMessage("Erro ao carregar todas reservas fixas");
             setReservasFixas([]);
         } finally {
             setLoading(false);
@@ -139,16 +140,12 @@ export default function ReservasFixasPage() {
     };
 
     useEffect(() => {
-        fetchReservasFixas();
+        fetchTodasReservasFixas();
     }, [selectedLab]);
 
-    // -----------------------
-    // Mapear reservas fixas para eventos FullCalendar
-    // -----------------------
     const mapReservasParaEventos = (lista: ReservaFixa[]): EventInput[] => {
         if (!Array.isArray(lista)) return [];
         return lista.map((reserva) => {
-            // Se diaSemana ou horários forem nulos, calcular a partir de dataInicio/dataFim
             let dia = reserva.diaSemana;
             let horaIni = reserva.horaInicio;
             let horaFi = reserva.horaFim;
@@ -156,7 +153,7 @@ export default function ReservasFixasPage() {
             if (dia === null || !horaIni || !horaFi) {
                 const dtInicio = new Date(reserva.dataInicio);
                 const dtFim = new Date(reserva.dataFim);
-                dia = dtInicio.getDay(); // 0=domingo
+                dia = dtInicio.getDay();
                 horaIni = dtInicio.toTimeString().slice(0, 5);
                 horaFi = dtFim.toTimeString().slice(0, 5);
             }
@@ -181,9 +178,6 @@ export default function ReservasFixasPage() {
         setEventsState(mapReservasParaEventos(reservasFixas));
     }, [reservasFixas]);
 
-    // -----------------------
-    // Salvar reserva fixa
-    // -----------------------
     const handleSalvarReservaFixa = async () => {
         if (!selectedUser || !selectedLab || !selectedSemestre) {
             setErrorMessage("Preencha todos os campos obrigatórios.");
@@ -214,7 +208,7 @@ export default function ReservasFixasPage() {
                 return;
             }
 
-            fetchReservasFixas();
+            fetchTodasReservasFixas();
             setOpenDialogCadastro(false);
             resetCadastroDialog();
         } catch (err) {
@@ -243,8 +237,19 @@ export default function ReservasFixasPage() {
             {sidebarOpen && <div className="fixed inset-0 bg-black/30 z-40 md:hidden" onClick={() => setSidebarOpen(false)} aria-hidden />}
 
             <div className="flex-1 flex flex-col min-h-screen">
+                {/* Header */}
                 <div className="bg-gradient-to-r from-indigo-600 via-sky-500 to-indigo-500 text-white py-4 px-4 sm:px-6 flex items-center justify-between shadow-lg">
-                    <h1 className="text-lg sm:text-xl font-semibold">Calendário de Reservas Fixas</h1>
+                    {/* Botão do mobile */}
+                    <button
+                        className="md:hidden mr-2 p-2 rounded-lg hover:bg-indigo-500 transition"
+                        onClick={() => setSidebarOpen(true)}
+                    >
+                        <Menu className="w-6 h-6 text-white" />
+                    </button>
+
+                    <h1 className="text-lg sm:text-xl font-semibold flex-1 text-center md:text-left">
+                        Calendário de Reservas Fixas
+                    </h1>
                 </div>
 
                 <main className="flex-1 p-3 sm:p-6 md:p-8 w-full">
@@ -263,7 +268,10 @@ export default function ReservasFixasPage() {
                             ref={calendarRef}
                             plugins={[timeGridPlugin, interactionPlugin]}
                             initialView="timeGridWeek"
-                            headerToolbar={false} // fixo, sem navegação
+                            locale={ptBrLocale}
+                            firstDay={1}
+                            buttonText={{ today: "Hoje", month: "Mês", week: "Semana", day: "Dia", list: "Lista" }}
+                            headerToolbar={false}
                             events={eventsState}
                             eventContent={renderEventContent}
                             slotMinTime="07:00:00"
@@ -275,7 +283,7 @@ export default function ReservasFixasPage() {
                 </main>
             </div>
 
-            {/* Dialog cadastro reserva fixa */}
+            {/* Dialog de cadastro */}
             <Dialog open={openDialogCadastro} onOpenChange={(open) => { setOpenDialogCadastro(open); if (!open) resetCadastroDialog(); }}>
                 <DialogContent className="max-w-md rounded-xl">
                     <DialogHeader>

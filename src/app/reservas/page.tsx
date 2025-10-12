@@ -7,6 +7,7 @@ import { EventInput } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
+import ptBrLocale from '@fullcalendar/core/locales/pt-br';
 import Sidebar from "../components/Sidebar";
 
 import {
@@ -66,6 +67,15 @@ export default function ReservasPage() {
 
     const calendarRef = useRef<any>(null);
     const TOKEN = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+    // responsividade: detectar mobile para ajustar toolbar / height
+    const [isMobile, setIsMobile] = useState<boolean>(false);
+    useEffect(() => {
+        const handleResize = () => setIsMobile(typeof window !== "undefined" ? window.innerWidth < 640 : false);
+        handleResize();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     const resetCadastroDialog = () => {
         setSelectedUser("");
@@ -266,6 +276,11 @@ export default function ReservasPage() {
 
     const handleSalvarReserva = async () => {
         try {
+            if (!selectedUser) {
+                setErrorMessage("Selecione um usuário antes de salvar.");
+                return;
+            }
+
             if (!selectedSemestre) {
                 setErrorMessage("Nenhum semestre válido para a data selecionada.");
                 return;
@@ -441,11 +456,25 @@ export default function ReservasPage() {
 
             <div className="flex-1 flex flex-col min-h-screen">
                 <div className="bg-gradient-to-r from-indigo-600 via-sky-500 to-indigo-500 text-white py-4 px-4 sm:px-6 flex items-center justify-between shadow-lg">
-                    <h1 className="text-lg sm:text-xl font-semibold">Calendário de Reservas</h1>
+                    <div className="flex items-center gap-3">
+                        {/* botão hambúrguer visível só no mobile */}
+                        <button
+                            type="button"
+                            className="md:hidden p-2 rounded-md hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white"
+                            onClick={() => setSidebarOpen(true)}
+                            aria-label="Abrir menu"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
+                            </svg>
+                        </button>
+
+                        <h1 className="text-lg sm:text-xl font-semibold">Calendário de Reservas</h1>
+                    </div>
                 </div>
 
                 <main className="flex-1 p-3 sm:p-6 md:p-8 w-full">
-                    <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100">
+                    <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100 overflow-hidden">
                         {/* Barra de filtros */}
                         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
                             <select
@@ -468,24 +497,33 @@ export default function ReservasPage() {
                         </div>
 
                         {/* Calendário */}
-                        <FullCalendar
-                            ref={calendarRef}
-                            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                            initialView="timeGridWeek"
-                            headerToolbar={{
-                                left: "prev,next today",
-                                center: "title",
-                                right: "dayGridMonth,timeGridWeek,timeGridDay",
-                            }}
-                            events={eventsState}
-                            eventClick={handleEventClick}
-                            dateClick={handleDateClick}
-                            eventContent={renderEventContent}
-                            slotMinTime="07:00:00"
-                            slotMaxTime="22:00:00"
-                            allDaySlot={false}
-                            height="80vh"
-                        />
+                        <div className="w-full overflow-hidden">
+                            <FullCalendar
+                                ref={calendarRef}
+                                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                                initialView="timeGridWeek"
+                                locale={ptBrLocale}
+                                firstDay={1}
+                                headerToolbar={isMobile ? { left: "prev,next", center: "title", right: "timeGridWeek" } : {
+                                    left: "prev,next today",
+                                    center: "title",
+                                    right: "dayGridMonth,timeGridWeek,timeGridDay",
+                                }}
+                                buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana', day: 'Dia', list: 'Lista' }}
+                                moreLinkContent={(n) => `+${n} outros`}
+                                events={eventsState}
+                                eventClick={handleEventClick}
+                                dateClick={handleDateClick}
+                                eventContent={renderEventContent}
+                                slotMinTime="07:00:00"
+                                slotMaxTime="22:00:00"
+                                slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
+                                eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
+                                allDaySlot={false}
+                                height={isMobile ? "60vh" : "80vh"}
+                            />
+                        </div>
+
                     </div>
                 </main>
             </div>
@@ -599,7 +637,7 @@ export default function ReservasPage() {
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter className="space-x-2">
-                            <Button onClick={handleSalvarReserva} disabled={!selectedSemestre}>Salvar</Button>
+                            <Button onClick={handleSalvarReserva} disabled={!selectedSemestre || !selectedUser} title={!selectedUser ? "Selecione um usuário" : !selectedSemestre ? "Semestre inválido" : ""}>Salvar</Button>
                             <Button variant="ghost" onClick={() => setOpenDialogCadastro(false)}>Cancelar</Button>
                         </DialogFooter>
                     </DialogContent>
@@ -607,6 +645,21 @@ export default function ReservasPage() {
             )}
 
             <ErrorAlert message={errorMessage} onClose={() => setErrorMessage("")} />
+
+            {/* estilos específicos para melhorar responsividade do FullCalendar */}
+            <style jsx>{`
+                /* reduz um pouco o título do toolbar e botões em mobile */
+                .fc .fc-toolbar-title { font-weight: 700; font-size: 1.25rem; }
+                @media (max-width: 640px) {
+                    .fc .fc-toolbar-title { font-size: 1rem; line-height: 1.1; }
+                    .fc .fc-toolbar-chunk { gap: 0.25rem; display: flex; align-items: center; flex-wrap: nowrap; }
+                    .fc .fc-button { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+                    .fc .fc-col-header-cell-cushion { font-size: 0.72rem; }
+                    .fc .fc-daygrid-day-top { font-size: 0.72rem; }
+                    /* permitir que a área de visualização role verticalmente sem quebrar layout */
+                    .fc .fc-scroller { -webkit-overflow-scrolling: touch; }
+                }
+            `}</style>
         </div>
     );
 }
