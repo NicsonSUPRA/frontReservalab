@@ -435,16 +435,43 @@ export default function ReservasPage() {
         }
     };
 
+    // -----------------------
+    // Render event content (ajustado para mobile)
+    // -----------------------
     const renderEventContent = (eventInfo: any) => {
         const { event } = eventInfo;
-        const startHour = event.start?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) ?? "";
-        const endHour = event.end?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }) ?? "";
         const bgColor = event.backgroundColor ?? "#6366f1";
+        const reserva: Reserva | undefined = event.extendedProps?.reserva;
+
+        // Horário formatado (se disponível)
+        const startHour = event.start
+            ? event.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
+            : "";
+        const endHour = event.end
+            ? event.end.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
+            : "";
 
         return (
-            <div className="w-full block rounded-lg px-2 py-1 text-white flex flex-col shadow-md" style={{ backgroundColor: bgColor }}>
-                <span className="text-[11px] font-semibold">{startHour}{endHour ? ` - ${endHour}` : ""}</span>
-                <span className="text-[12px] truncate">{event.title}</span>
+            <div
+                className={`w-full block rounded-lg px-2 py-1 text-white flex flex-col shadow-md ${isMobile ? 'gap-0.5 py-1' : 'gap-1 py-2'}`}
+                style={{ backgroundColor: bgColor }}
+            >
+                {/* Mostrar horário apenas em telas maiores */}
+                {!isMobile && (
+                    <span className="text-[11px] font-semibold leading-tight">
+                        {startHour}{endHour ? ` - ${endHour}` : ""}
+                    </span>
+                )}
+
+                {/* Usuário (linha principal) */}
+                <span className={`text-[12px] font-semibold truncate ${isMobile ? 'text-sm' : ''}`}>
+                    {reserva?.usuario?.nome ?? event.title}
+                </span>
+
+                {/* Laboratório (linha secundária) */}
+                <span className={`text-[11px] truncate ${isMobile ? 'text-xs opacity-95' : ''}`}>
+                    {reserva?.laboratorio?.nome ?? ''}
+                </span>
             </div>
         );
     };
