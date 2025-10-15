@@ -121,6 +121,10 @@ export default function ReservasPage() {
     // -----------------------
     const fetchSelects = async () => {
         try {
+            const decoded = parseJwt(TOKEN);
+            const userRoles = decoded?.roles || decoded?.authorities || [];
+            const userLogin = decoded?.sub; // claim 'sub' do token
+
             const [resProfessores, resLabs, resSemestres] = await Promise.all([
                 fetch(`${BASE_URL}/usuarios/professores`, {
                     headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
@@ -137,7 +141,18 @@ export default function ReservasPage() {
             const laboratoriosData = await resLabs.json();
             const semestresData = await resSemestres.json();
 
-            setUsuarios(Array.isArray(professoresData) ? professoresData : []);
+            // 🔍 Aplica a filtragem com base na role
+            let usuariosFiltrados = [];
+            if (userRoles.some((r: string) => r.toUpperCase() === "ADMIN")) {
+                usuariosFiltrados = professoresData; // Admin vê todos
+            } else {
+                // Outros veem apenas a si mesmos
+                usuariosFiltrados = professoresData.filter(
+                    (u: any) => u.login === userLogin
+                );
+            }
+
+            setUsuarios(Array.isArray(usuariosFiltrados) ? usuariosFiltrados : []);
             setLaboratorios(Array.isArray(laboratoriosData) ? laboratoriosData : []);
             setSemestres(Array.isArray(semestresData) ? semestresData : []);
         } catch (err) {
@@ -145,6 +160,7 @@ export default function ReservasPage() {
             setErrorMessage("Erro ao buscar dados para o formulário");
         }
     };
+
 
     useEffect(() => {
         fetchSelects();
@@ -436,6 +452,39 @@ export default function ReservasPage() {
     };
 
     // -----------------------
+    // Controle de permissões
+    // -----------------------
+    function podeCancelar(reserva: Reserva | null): boolean {
+        if (!reserva) return false;
+        const decoded = parseJwt(TOKEN);
+        const userRoles = decoded?.roles || decoded?.authorities || [];
+        const userLogin = decoded?.sub;
+
+        const isAdmin = userRoles.some((r: string) => r.toUpperCase() === "ADMIN");
+        const isProf = userRoles.some((r: string) => r.toUpperCase() === "PROF");
+        const isProfComp = userRoles.some((r: string) => r.toUpperCase() === "PROF_COMP");
+
+        if (isAdmin) return true;
+
+        const reservaUser = reserva.usuario;
+        if (!reservaUser) return false;
+
+        const reservaRoles = reservaUser.roles?.map((r) => r.toUpperCase()) || [];
+
+        // PROF só cancela suas próprias reservas
+        if (isProf) {
+            return reservaUser.login === userLogin;
+        }
+
+        // PROF_COMP cancela reservas de PROF_COMP e PROF
+        if (isProfComp) {
+            return reservaRoles.includes("PROF_COMP") || reservaRoles.includes("PROF");
+        }
+
+        return false;
+    }
+
+    // -----------------------
     // Render event content (ajustado para mobile)
     // -----------------------
     const renderEventContent = (eventInfo: any) => {
@@ -582,7 +631,7 @@ export default function ReservasPage() {
                         <Button onClick={() => setOpenDialogDetalhes(false)}>Fechar</Button>
 
                         <div className="flex gap-2">
-                            {selectedReserva?.status !== "CANCELADA" && (
+                            {selectedReserva?.status !== "CANCELADA" && podeCancelar(selectedReserva) && (
                                 <>
                                     {selectedReserva?.tipo === "NORMAL" ? (
                                         <Button variant="destructive" onClick={handleCancelarReserva}>
