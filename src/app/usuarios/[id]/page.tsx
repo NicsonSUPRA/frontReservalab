@@ -10,6 +10,7 @@ interface Usuario {
     id: string
     nome: string
     login: string
+    email?: string
     roles: string[]
 }
 
@@ -103,8 +104,9 @@ export default function UsuarioPage() {
 
         setSaving(true)
         try {
-            const body: { nome?: string; senha?: string; roles?: string[] } = {}
+            const body: { nome?: string; senha?: string; roles?: string[]; email?: string } = {}
             body.nome = usuario.nome
+            body.email = usuario.email // ✅ inclui email no PUT
             if (senha) body.senha = senha
             body.roles = [roleSelecionada]
 
@@ -396,6 +398,39 @@ export default function UsuarioPage() {
                                         </p>
                                     </div>
 
+                                    {/* E-mail (agora editável no modo de edição) */}
+                                    <div className="space-y-3">
+                                        <label htmlFor="email" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                            <svg
+                                                className="w-4 h-4 text-gray-400 flex-shrink-0"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M16 12H8m8 0a4 4 0 01-8 0m8 0a4 4 0 00-8 0"
+                                                />
+                                            </svg>
+                                            E-mail
+                                        </label>
+                                        <input
+                                            id="email"
+                                            name="email"
+                                            type="email"
+                                            value={usuario.email || ""}
+                                            onChange={handleChange}
+                                            disabled={!editando}
+                                            className={`w-full h-12 px-4 text-base rounded-lg transition-all duration-300 ${!editando
+                                                ? "bg-gray-100 text-gray-500 border border-gray-200"
+                                                : "bg-white border-violet-300 focus:border-violet-500 focus:ring-2 focus:ring-violet-200 shadow-sm"
+                                                }`}
+                                            placeholder="Digite o e-mail"
+                                        />
+                                    </div>
+
                                     <div className="space-y-3">
                                         <label htmlFor="senha" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
                                             <svg
@@ -569,6 +604,7 @@ export default function UsuarioPage() {
                                             {usuario.nome || "Nome não definido"}
                                         </h4>
                                         <p className="text-sm sm:text-base text-gray-600 mb-3 break-all">@{usuario.login}</p>
+                                        <p className="text-sm sm:text-base text-gray-600 mb-3 break-all">{usuario.email || ""}</p>
                                         <div className="flex flex-wrap gap-2">
                                             {usuario.roles?.map((role) => {
                                                 const roleConfig = getRoleConfig(role)

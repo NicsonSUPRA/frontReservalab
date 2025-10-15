@@ -24,17 +24,17 @@ export default function CadastrarUsuarioPage() {
     const [nome, setNome] = useState("");
     const [login, setLogin] = useState("");
     const [senha, setSenha] = useState("");
+    const [email, setEmail] = useState(""); // ✅ novo estado
     const [grupo, setGrupo] = useState("ALUNO");
     const [showSenha, setShowSenha] = useState(false);
     const [loading, setLoading] = useState(false);
     const [notificacao, setNotificacao] = useState<Notificacao | null>(null);
-    const [errors, setErrors] = useState<{ nome?: string; login?: string; senha?: string }>({});
+    const [errors, setErrors] = useState<{ nome?: string; login?: string; senha?: string; email?: string }>({});
 
     const router = useRouter();
     const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     const nomeRef = useRef<HTMLInputElement | null>(null);
 
-    // CLASSE PADRÃO PARA TODOS INPUTS/SELECTS (GARANTE CONTRASTE)
     const INPUT_CLASS =
         "w-full px-4 py-2 border rounded-lg bg-white text-gray-900 placeholder-gray-500 border-gray-300 shadow-sm " +
         "focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-500 transition";
@@ -51,6 +51,8 @@ export default function CadastrarUsuarioPage() {
         const e: typeof errors = {};
         if (!nome.trim()) e.nome = "Nome é obrigatório.";
         if (!login.trim()) e.login = "Login é obrigatório.";
+        if (!email.trim()) e.email = "E-mail é obrigatório.";
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "E-mail inválido.";
         if (!senha) e.senha = "Senha é obrigatória.";
         else if (senha.length < 6) e.senha = "Senha precisa ter ao menos 6 caracteres.";
         setErrors(e);
@@ -61,6 +63,7 @@ export default function CadastrarUsuarioPage() {
         setNome("");
         setLogin("");
         setSenha("");
+        setEmail("");
         setGrupo("ALUNO");
         setErrors({});
         setNotificacao(null);
@@ -85,7 +88,12 @@ export default function CadastrarUsuarioPage() {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({ nome: nome.trim(), login: login.trim(), senha }),
+                body: JSON.stringify({
+                    nome: nome.trim(),
+                    login: login.trim(),
+                    senha,
+                    email: email.trim(), // ✅ enviado ao backend
+                }),
             });
 
             const data = await res.json().catch(() => ({}));
@@ -154,8 +162,9 @@ export default function CadastrarUsuarioPage() {
                         </div>
 
                         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-                            {/* Nome */}
+                            {/* Nome / Login / Email */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Nome */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
                                     <input
@@ -184,6 +193,21 @@ export default function CadastrarUsuarioPage() {
                                         autoComplete="username"
                                     />
                                     {errors.login && <div className="text-sm text-red-600 mt-1">{errors.login}</div>}
+                                </div>
+
+                                {/* Email */}
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
+                                    <input
+                                        value={email}
+                                        onChange={(ev) => setEmail(ev.target.value)}
+                                        type="email"
+                                        placeholder="Ex.: maria.silva@exemplo.com"
+                                        aria-invalid={!!errors.email}
+                                        className={`${INPUT_CLASS} ${errors.email ? "border-red-300 bg-red-50" : ""}`}
+                                        autoComplete="email"
+                                    />
+                                    {errors.email && <div className="text-sm text-red-600 mt-1">{errors.email}</div>}
                                 </div>
 
                                 {/* Senha */}
@@ -238,20 +262,6 @@ export default function CadastrarUsuarioPage() {
                                             );
                                         })}
                                     </div>
-
-                                    {/* select invisível só por acessibilidade/backup (opcional) */}
-                                    <label className="sr-only">Grupo (backup)</label>
-                                    <select
-                                        value={grupo}
-                                        onChange={(e) => setGrupo(e.target.value)}
-                                        className={`${INPUT_CLASS} max-w-xs appearance-none`}
-                                    >
-                                        {GRUPOS.map((g) => (
-                                            <option key={g.value} value={g.value}>
-                                                {g.label}
-                                            </option>
-                                        ))}
-                                    </select>
                                 </div>
                             </div>
 
@@ -276,7 +286,6 @@ export default function CadastrarUsuarioPage() {
                                     )}
                                     Cadastrar
                                 </button>
-
 
                                 <button
                                     type="button"
@@ -311,7 +320,8 @@ export default function CadastrarUsuarioPage() {
                                 <div className="font-medium text-gray-800">Pré-visualização</div>
                                 <div className="text-gray-500">
                                     Nome: <span className="font-medium text-gray-700">{nome || "—"}</span> · Login:{" "}
-                                    <span className="font-medium text-gray-700">{login || "—"}</span>
+                                    <span className="font-medium text-gray-700">{login || "—"}</span> · E-mail:{" "}
+                                    <span className="font-medium text-gray-700">{email || "—"}</span>
                                 </div>
                             </div>
                         </div>
