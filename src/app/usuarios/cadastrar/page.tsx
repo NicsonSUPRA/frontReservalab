@@ -17,6 +17,11 @@ type Notificacao = {
     message: string;
 };
 
+type Disciplina = {
+    nome: string;
+    descricao: string;
+};
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 export default function CadastrarUsuarioPage() {
@@ -26,6 +31,7 @@ export default function CadastrarUsuarioPage() {
     const [senha, setSenha] = useState("");
     const [email, setEmail] = useState(""); // ✅ novo estado
     const [grupo, setGrupo] = useState("ALUNO");
+    const [disciplinas, setDisciplinas] = useState<Disciplina[]>([]); // ✅ lista de disciplinas
     const [showSenha, setShowSenha] = useState(false);
     const [loading, setLoading] = useState(false);
     const [notificacao, setNotificacao] = useState<Notificacao | null>(null);
@@ -47,6 +53,8 @@ export default function CadastrarUsuarioPage() {
         nomeRef.current?.focus();
     }, []);
 
+    const isProfessorRole = (r: string) => r === "PROF" || r === "PROF_COMP";
+
     const validate = () => {
         const e: typeof errors = {};
         if (!nome.trim()) e.nome = "Nome é obrigatório.";
@@ -55,6 +63,19 @@ export default function CadastrarUsuarioPage() {
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "E-mail inválido.";
         if (!senha) e.senha = "Senha é obrigatória.";
         else if (senha.length < 6) e.senha = "Senha precisa ter ao menos 6 caracteres.";
+
+        // validações simples para disciplinas quando for professor
+        if (isProfessorRole(grupo)) {
+            // se houver disciplinas, garantir nome não vazio
+            for (let i = 0; i < disciplinas.length; i++) {
+                const d = disciplinas[i];
+                if (!d.nome || !d.nome.trim()) {
+                    e.nome = `Nome da disciplina #${i + 1} é obrigatório.`;
+                    break;
+                }
+            }
+        }
+
         setErrors(e);
         return Object.keys(e).length === 0;
     };
@@ -65,13 +86,31 @@ export default function CadastrarUsuarioPage() {
         setSenha("");
         setEmail("");
         setGrupo("ALUNO");
+        setDisciplinas([]);
         setErrors({});
         setNotificacao(null);
+    };
+
+    const adicionarDisciplina = () => {
+        setDisciplinas((prev) => [...prev, { nome: "", descricao: "" }]);
+    };
+
+    const removerDisciplina = (index: number) => {
+        setDisciplinas((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    const atualizarDisciplina = (index: number, campo: keyof Disciplina, valor: string) => {
+        setDisciplinas((prev) => {
+            const copy = [...prev];
+            copy[index] = { ...copy[index], [campo]: valor };
+            return copy;
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setNotificacao(null);
+
         if (!token) {
             setNotificacao({ type: "error", message: "Autenticação necessária." });
             router.push("/login");
@@ -82,18 +121,38 @@ export default function CadastrarUsuarioPage() {
         setLoading(true);
 
         try {
+            const payload: any = {
+                nome: nome.trim(),
+                login: login.trim(),
+                senha,
+                email: email.trim(),
+            };
+
+            // só enviar disciplinas se a role for professor/prof_comp e houver disciplinas
+            if (isProfessorRole(grupo) && disciplinas.length > 0) {
+                payload.disciplinas = disciplinas.map((d) => ({
+                    nome: d.nome.trim(),
+                    descricao: d.descricao?.trim(),
+                }));
+            }
+
+            // 🔍 Exibe no console o curl equivalente
+            const curlCommand = `
+    curl -X POST "${API_URL}/usuarios/cadastrar/${grupo}" \\
+    -H "Content-Type: application/json" \\
+    -H "Authorization: Bearer ${token}" \\
+    -d '${JSON.stringify(payload, null, 2)}'
+            `.trim();
+
+            console.log("🔍 CURL equivalente:\n" + curlCommand);
+
             const res = await fetch(`${API_URL}/usuarios/cadastrar/${grupo}`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({
-                    nome: nome.trim(),
-                    login: login.trim(),
-                    senha,
-                    email: email.trim(), // ✅ enviado ao backend
-                }),
+                body: JSON.stringify(payload),
             });
 
             const data = await res.json().catch(() => ({}));
@@ -265,6 +324,62 @@ export default function CadastrarUsuarioPage() {
                                 </div>
                             </div>
 
+                            {/* Disciplinas - renderiza apenas para PROF ou PROF_COMP */}
+                            {isProfessorRole(grupo) && (
+                                <div className="mt-4 border-t pt-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h3 className="text-base font-semibold text-gray-700">Disciplinas</h3>
+                                        <button
+                                            type="button"
+                                            onClick={adicionarDisciplina}
+                                            className="px-3 py-1 rounded-full bg-indigo-600 text-white text-sm hover:bg-indigo-700 transition"
+                                        >
+                                            Adicionar disciplina
+                                        </button>
+                                    </div>
+
+                                    {disciplinas.length === 0 && (
+                                        <div className="text-sm text-gray-500 mb-3">Nenhuma disciplina adicionada.</div>
+                                    )}
+
+                                    <div className="space-y-3">
+                                        {disciplinas.map((disc, idx) => (
+                                            <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                                                    <input
+                                                        type="text"
+                                                        value={disc.nome}
+                                                        onChange={(e) => atualizarDisciplina(idx, "nome", e.target.value)}
+                                                        placeholder="Nome da disciplina"
+                                                        className={`${INPUT_CLASS}`}
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                                                    <input
+                                                        type="text"
+                                                        value={disc.descricao}
+                                                        onChange={(e) => atualizarDisciplina(idx, "descricao", e.target.value)}
+                                                        placeholder="Breve descrição"
+                                                        className={`${INPUT_CLASS}`}
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-1 flex gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removerDisciplina(idx)}
+                                                        className="px-3 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 transition"
+                                                    >
+                                                        Remover
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Ações */}
                             <div className="mt-6 flex gap-3">
                                 <button
@@ -312,17 +427,31 @@ export default function CadastrarUsuarioPage() {
                         </form>
 
                         {/* Preview */}
-                        <div className="mt-6 flex items-center gap-4 text-sm text-gray-500">
+                        <div className="mt-6 flex items-start gap-4 text-sm text-gray-500">
                             <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center font-semibold text-indigo-700">
                                 {initials(nome || "Usu")}
                             </div>
-                            <div>
+                            <div className="flex-1">
                                 <div className="font-medium text-gray-800">Pré-visualização</div>
                                 <div className="text-gray-500">
                                     Nome: <span className="font-medium text-gray-700">{nome || "—"}</span> · Login:{" "}
                                     <span className="font-medium text-gray-700">{login || "—"}</span> · E-mail:{" "}
                                     <span className="font-medium text-gray-700">{email || "—"}</span>
                                 </div>
+
+                                {isProfessorRole(grupo) && disciplinas.length > 0 && (
+                                    <div className="mt-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                        <div className="text-sm text-gray-600 font-medium mb-2">Disciplinas adicionadas:</div>
+                                        <ul className="text-gray-700 list-disc list-inside space-y-1">
+                                            {disciplinas.map((d, i) => (
+                                                <li key={i}>
+                                                    <span className="font-medium">{d.nome}</span>
+                                                    {d.descricao && <span className="text-gray-500"> — {d.descricao}</span>}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

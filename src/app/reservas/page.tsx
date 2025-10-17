@@ -1,4 +1,3 @@
-// src/app/reservas/page.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -21,9 +20,24 @@ import {
 import { Button } from "@/components/ui/button";
 import ErrorAlert from "../components/ErrorAlert";
 
-interface Usuario { id: string; login: string; nome: string; roles?: string[]; }
+interface Disciplina {
+    id?: number;
+    nome: string;
+    descricao?: string;
+    usuario?: { id: string } | null;
+}
+
+interface Usuario {
+    id: string;
+    login: string;
+    nome: string;
+    roles?: string[];
+    disciplinas?: Disciplina[]; // ✅ usuário pode ter lista de disciplinas
+}
+
 interface Laboratorio { id: number; nome: string; }
 interface Semestre { id: number; dataInicio: string; dataFim: string; descricao?: string; }
+
 interface Reserva {
     id: number;
     dataInicio: string | null;
@@ -37,6 +51,7 @@ interface Reserva {
     usuario: Usuario;
     laboratorio: Laboratorio;
     semestre: Semestre;
+    disciplina?: Disciplina | null;
 }
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -54,10 +69,13 @@ export default function ReservasPage() {
     const [usuarios, setUsuarios] = useState<Usuario[]>([]);
     const [laboratorios, setLaboratorios] = useState<Laboratorio[]>([]);
     const [semestres, setSemestres] = useState<Semestre[]>([]);
+    const [disciplinasGlobais, setDisciplinasGlobais] = useState<Disciplina[]>([]); // fallback global
+    const [disciplinasAtuais, setDisciplinasAtuais] = useState<Disciplina[]>([]); // disciplinas mostradas no select
 
     const [selectedUser, setSelectedUser] = useState<string>("");
     const [selectedLab, setSelectedLab] = useState<number | "">("");
     const [selectedSemestre, setSelectedSemestre] = useState<number | "">("");
+    const [selectedDisciplina, setSelectedDisciplina] = useState<number | "">("");
     const [semestreEncontrado, setSemestreEncontrado] = useState<Semestre | null>(null);
     const [horaInicio, setHoraInicio] = useState<string>("08:00");
     const [horaFim, setHoraFim] = useState<string>("10:00");
@@ -79,12 +97,14 @@ export default function ReservasPage() {
 
     const resetCadastroDialog = () => {
         setSelectedUser("");
-        // manteve selectedLab para não perder o laboratório pesquisado no topo
+        setSelectedLab("");
         setSelectedSemestre("");
         setSemestreEncontrado(null);
         setHoraInicio("08:00");
         setHoraFim("10:00");
         setDataSelecionada("");
+        setSelectedDisciplina("");
+        setDisciplinasAtuais([]); // limpa disciplinas exibidas
     };
 
     // -----------------------
@@ -117,15 +137,15 @@ export default function ReservasPage() {
     );
 
     // -----------------------
-    // Fetch selects
+    // Fetch selects (usuarios, labs, semestres e disciplinas globais)
     // -----------------------
     const fetchSelects = async () => {
         try {
             const decoded = parseJwt(TOKEN);
             const userRoles = decoded?.roles || decoded?.authorities || [];
-            const userLogin = decoded?.sub; // claim 'sub' do token
+            const userLogin = decoded?.sub;
 
-            const [resProfessores, resLabs, resSemestres] = await Promise.all([
+            const requests = [
                 fetch(`${BASE_URL}/usuarios/professores`, {
                     headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
                 }),
@@ -135,36 +155,66 @@ export default function ReservasPage() {
                 fetch(`${BASE_URL}/semestre`, {
                     headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
                 }),
-            ]);
+                fetch(`${BASE_URL}/disciplinas`, {
+                    headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
+                }),
+            ];
 
-            const professoresData = await resProfessores.json();
-            const laboratoriosData = await resLabs.json();
-            const semestresData = await resSemestres.json();
+            const [resProfessores, resLabs, resSemestres, resDisciplinas] = await Promise.all(requests);
 
-            // 🔍 Aplica a filtragem com base na role
-            let usuariosFiltrados = [];
+            const professoresData = await resProfessores.json().catch(() => []);
+            const laboratoriosData = await resLabs.json().catch(() => []);
+            const semestresData = await resSemestres.json().catch(() => []);
+            const disciplinasData = await resDisciplinas.json().catch(() => []);
+
+            // filtragem de usuários baseada na role
+            let usuariosFiltrados: Usuario[] = [];
             if (userRoles.some((r: string) => r.toUpperCase() === "ADMIN")) {
-                usuariosFiltrados = professoresData; // Admin vê todos
+                usuariosFiltrados = professoresData;
             } else {
-                // Outros veem apenas a si mesmos
-                usuariosFiltrados = professoresData.filter(
-                    (u: any) => u.login === userLogin
-                );
+                usuariosFiltrados = (professoresData || []).filter((u: any) => u.login === userLogin);
             }
 
             setUsuarios(Array.isArray(usuariosFiltrados) ? usuariosFiltrados : []);
             setLaboratorios(Array.isArray(laboratoriosData) ? laboratoriosData : []);
             setSemestres(Array.isArray(semestresData) ? semestresData : []);
+            setDisciplinasGlobais(Array.isArray(disciplinasData) ? disciplinasData : []);
         } catch (err) {
             console.error("Erro ao buscar selects:", err);
             setErrorMessage("Erro ao buscar dados para o formulário");
         }
     };
 
-
     useEffect(() => {
         fetchSelects();
     }, []);
+
+    // -----------------------
+    // Quando o usuário selecionado mudar, atualiza lista de disciplinas exibidas:
+    // usa disciplinas do usuário (se existir) ou fallback para disciplinasGlobais filtradas pelo usuário.
+    // -----------------------
+    useEffect(() => {
+        if (!selectedUser) {
+            setDisciplinasAtuais([]);
+            setSelectedDisciplina("");
+            return;
+        }
+
+        const user = usuarios.find((u) => u.id === selectedUser);
+        if (user && Array.isArray(user.disciplinas) && user.disciplinas.length > 0) {
+            setDisciplinasAtuais(user.disciplinas);
+        } else {
+            // fallback: usa disciplinas globais, filtrando por disciplina.usuario se disponível
+            const filtered = disciplinasGlobais.filter((d) => {
+                if (!d.usuario) return true;
+                return d.usuario.id === selectedUser;
+            });
+            setDisciplinasAtuais(filtered);
+        }
+
+        // reset selected disciplina quando troca de usuário
+        setSelectedDisciplina("");
+    }, [selectedUser, usuarios, disciplinasGlobais]);
 
     // -----------------------
     // Buscar reservas
@@ -243,10 +293,41 @@ export default function ReservasPage() {
         setEventsState(mapReservasParaEventos(reservas));
     }, [reservas]);
 
-    const handleEventClick = (clickInfo: any) => {
+    // -----------------------
+    // Ao clicar no evento: tenta garantir que selectedReserva tenha a disciplina associada.
+    // Estratégia:
+    // 1) se extendedProps.reserva já tem disciplina -> usa direto
+    // 2) se não tem disciplina, mas usuario.disciplinas tem exatamente 1 -> usa como fallback
+    // 3) se ainda não tiver -> tenta buscar /reserva/{id} no backend para obter dados completos
+    // -----------------------
+    const handleEventClick = async (clickInfo: any) => {
         const ext = clickInfo.event.extendedProps;
-        if (ext && ext.reserva) setSelectedReserva(ext.reserva as Reserva);
-        else setSelectedReserva(null);
+        let reserva: Reserva | null = ext && ext.reserva ? (ext.reserva as Reserva) : null;
+
+        if (reserva) {
+            // fallback rápido: se o usuário só tem 1 disciplina, presume que é essa (útil quando a API não retorna disciplina)
+            if (!reserva.disciplina && reserva.usuario?.disciplinas && reserva.usuario.disciplinas.length === 1) {
+                reserva = { ...reserva, disciplina: reserva.usuario.disciplinas[0] };
+            }
+
+            // se ainda não tem disciplina, tenta buscar detalhe da reserva no backend
+            if (!reserva.disciplina) {
+                try {
+                    const res = await fetch(`${BASE_URL}/reserva/${reserva.id}`, {
+                        headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
+                    });
+                    if (res.ok) {
+                        const text = await res.text();
+                        const data = text ? JSON.parse(text) : null;
+                        if (data) reserva = data;
+                    }
+                } catch (err) {
+                    console.warn("Não foi possível buscar reserva detalhada:", err);
+                }
+            }
+        }
+
+        setSelectedReserva(reserva);
         setOpenDialogDetalhes(true);
     };
 
@@ -302,7 +383,12 @@ export default function ReservasPage() {
                 return;
             }
 
-            const body = {
+            if (!selectedLab) {
+                setErrorMessage("Laboratório inválido.");
+                return;
+            }
+
+            const body: any = {
                 usuarioId: selectedUser,
                 laboratorioId: selectedLab,
                 semestreId: selectedSemestre,
@@ -310,6 +396,31 @@ export default function ReservasPage() {
                 dataFim: `${dataSelecionada}T${horaFim}`,
                 status: "PENDENTE",
             };
+
+            // incluir disciplina apenas se houver seleção
+            if (selectedDisciplina !== "" && selectedDisciplina !== undefined) {
+                body.disciplina = { id: selectedDisciplina };
+            }
+
+            // --- Gera e imprime o CURL equivalente ---
+            try {
+                const bodyString = JSON.stringify(body, null, 2); // formatado
+                // Escapa eventuais aspas simples para shell (mais seguro)
+                const safeBodyForShell = bodyString.replace(/'/g, "'\"'\"'");
+                const authHeader = TOKEN ? `-H "Authorization: Bearer ${TOKEN}" \\n` : "";
+                const curl = [
+                    `curl -X POST "${BASE_URL}/reserva/normal" \\`,
+                    `  -H "Content-Type: application/json" \\`,
+                    authHeader ? `  ${authHeader.trim()}` : "",
+                    `  -d '${safeBodyForShell}'`
+                ].filter(Boolean).join("\n");
+                // Imprime com separador para facilitar leitura no console do browser
+                console.info("🧾 CURL equivalente (copiar/colar no terminal):\n" + curl);
+            } catch (err) {
+                console.warn("Não foi possível gerar o CURL legível:", err);
+            }
+            // ---------------------------------------
+
             const res = await fetch(`${BASE_URL}/reserva/normal`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}) },
@@ -321,7 +432,7 @@ export default function ReservasPage() {
             if (!res.ok) {
                 setOpenDialogCadastro(false);
                 resetCadastroDialog();
-                setErrorMessage(data?.errors?.join?.(", ") || "Erro ao criar reserva");
+                setErrorMessage(data?.errors?.join?.(", ") || data?.message || "Erro ao criar reserva");
                 return;
             }
 
@@ -485,7 +596,7 @@ export default function ReservasPage() {
     }
 
     // -----------------------
-    // Render event content (ajustado para mobile)
+    // Render event content (ajustado para mostrar disciplina)
     // -----------------------
     const renderEventContent = (eventInfo: any) => {
         const { event } = eventInfo;
@@ -505,21 +616,22 @@ export default function ReservasPage() {
                 className={`w-full block rounded-lg px-2 py-1 text-white flex flex-col shadow-md ${isMobile ? 'gap-0.5 py-1' : 'gap-1 py-2'}`}
                 style={{ backgroundColor: bgColor }}
             >
-                {/* Mostrar horário apenas em telas maiores */}
                 {!isMobile && (
                     <span className="text-[11px] font-semibold leading-tight">
                         {startHour}{endHour ? ` - ${endHour}` : ""}
                     </span>
                 )}
 
-                {/* Usuário (linha principal) */}
                 <span className={`text-[12px] font-semibold truncate ${isMobile ? 'text-sm' : ''}`}>
                     {reserva?.usuario?.nome ?? event.title}
                 </span>
 
-                {/* Laboratório (linha secundária) */}
+                {/* linha ajustada — mostra laboratório e disciplina (se existir) */}
                 <span className={`text-[11px] truncate ${isMobile ? 'text-xs opacity-95' : ''}`}>
                     {reserva?.laboratorio?.nome ?? ''}
+                    {reserva?.disciplina?.nome && (
+                        <> — <span className="italic">{reserva.disciplina.nome}</span></>
+                    )}
                 </span>
             </div>
         );
@@ -533,7 +645,6 @@ export default function ReservasPage() {
             <div className="flex-1 flex flex-col min-h-screen">
                 <div className="bg-gradient-to-r from-indigo-600 via-sky-500 to-indigo-500 text-white py-4 px-4 sm:px-6 flex items-center justify-between shadow-lg">
                     <div className="flex items-center gap-3">
-                        {/* botão hambúrguer visível só no mobile */}
                         <button
                             type="button"
                             className="md:hidden p-2 rounded-md hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white"
@@ -615,6 +726,9 @@ export default function ReservasPage() {
                                     <>
                                         <div><strong>Usuário:</strong> {selectedReserva.usuario?.nome} ({selectedReserva.usuario?.login})</div>
                                         <div><strong>Laboratório:</strong> {selectedReserva.laboratorio?.nome}</div>
+                                        {selectedReserva.disciplina && (
+                                            <div><strong>Disciplina:</strong> {selectedReserva.disciplina.nome}{selectedReserva.disciplina.descricao ? ` — ${selectedReserva.disciplina.descricao}` : ""}</div>
+                                        )}
                                         <div><strong>Status:</strong> {selectedReserva.status ?? "-"}</div>
                                         {selectedReserva.dataInicio ? (
                                             <div><strong>Início:</strong> {selectedReserva.dataInicio} <br /><strong>Fim:</strong> {selectedReserva.dataFim ?? "-"}</div>
@@ -677,6 +791,26 @@ export default function ReservasPage() {
                                         {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.nome}</option>))}
                                     </select>
 
+                                    {/* Disciplina (opcional) — usa disciplinas do usuário quando disponíveis */}
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-700 mb-1">Disciplina (opcional)</label>
+                                        <select
+                                            className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                            value={selectedDisciplina}
+                                            onChange={(e) => setSelectedDisciplina(e.target.value === "" ? "" : Number(e.target.value))}
+                                            disabled={!selectedUser || disciplinasAtuais.length === 0}
+                                        >
+                                            <option value="">Nenhuma disciplina</option>
+
+                                            {disciplinasAtuais.map((d) => (
+                                                <option key={d.id} value={d.id}>
+                                                    {d.nome}{d.descricao ? ` — ${d.descricao}` : ""}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="text-xs text-gray-500 mt-1">Opcional — associar a reserva a uma disciplina (se aplicável).</p>
+                                    </div>
+
                                     <select
                                         className="border rounded-lg px-3 py-2 w-full bg-gray-100 cursor-not-allowed"
                                         value={selectedLab}
@@ -705,7 +839,6 @@ export default function ReservasPage() {
                                     </select>
 
                                     <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedSemestre} onChange={(e) => setSelectedSemestre(Number(e.target.value))} style={{ display: 'none' }}>
-                                        {/* Mantive o select original (escondido) para compatibilidade, mas o usuário não vê ele */}
                                         <option value="">Selecione o semestre</option>
                                         {semestres.map((s) => (<option key={s.id} value={s.id}>{s.descricao}</option>))}
                                     </select>
@@ -724,7 +857,6 @@ export default function ReservasPage() {
 
             {/* estilos específicos para melhorar responsividade do FullCalendar */}
             <style jsx>{`
-                /* reduz um pouco o título do toolbar e botões em mobile */
                 .fc .fc-toolbar-title { font-weight: 700; font-size: 1.25rem; }
                 @media (max-width: 640px) {
                     .fc .fc-toolbar-title { font-size: 1rem; line-height: 1.1; }
@@ -732,7 +864,6 @@ export default function ReservasPage() {
                     .fc .fc-button { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
                     .fc .fc-col-header-cell-cushion { font-size: 0.72rem; }
                     .fc .fc-daygrid-day-top { font-size: 0.72rem; }
-                    /* permitir que a área de visualização role verticalmente sem quebrar layout */
                     .fc .fc-scroller { -webkit-overflow-scrolling: touch; }
                 }
             `}</style>
