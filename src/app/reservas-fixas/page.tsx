@@ -1,4 +1,3 @@
-// src/app/reservas/ReservasFixasPage.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -21,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import ErrorAlert from "../components/ErrorAlert";
 
-interface Usuario { id: string; login: string; nome: string; roles?: string[]; }
+interface Usuario { id: string; login: string; nome: string; roles?: string[]; disciplinas?: any[]; }
 interface Laboratorio { id: number; nome: string; }
 interface Semestre { id: number; dataInicio: string; dataFim: string; descricao?: string; }
 interface ReservaFixa {
@@ -36,6 +35,7 @@ interface ReservaFixa {
     semestre: Semestre;
     tipo?: string;
     status?: string;
+    disciplina?: { id?: number; nome?: string; descricao?: string } | null;
 }
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -47,9 +47,15 @@ export default function ReservasFixasPage() {
     const [loading, setLoading] = useState(false);
     const [openDialogCadastro, setOpenDialogCadastro] = useState(false);
 
+    const [openDialogDetalhes, setOpenDialogDetalhes] = useState(false);
+    const [selectedReserva, setSelectedReserva] = useState<ReservaFixa | null>(null);
+
     const [usuarios, setUsuarios] = useState<Usuario[]>([]);
     const [laboratorios, setLaboratorios] = useState<Laboratorio[]>([]);
     const [semestres, setSemestres] = useState<Semestre[]>([]);
+
+    // novo estado que guarda o semestre "encontrado" (por data)
+    const [semestreEncontrado, setSemestreEncontrado] = useState<Semestre | null>(null);
 
     const [selectedUser, setSelectedUser] = useState<string>("");
     const [selectedLab, setSelectedLab] = useState<number | "">("");
@@ -70,19 +76,36 @@ export default function ReservasFixasPage() {
         setDiaSemana(1);
         setHoraInicio("08:00");
         setHoraFim("10:00");
+        setSemestreEncontrado(null);
     };
 
     const fetchSelects = async () => {
         try {
+            const urlProf = `${BASE_URL}/usuarios/professores`;
+            const urlLabs = `${BASE_URL}/laboratorios`;
+            const urlSem = `${BASE_URL}/semestre`;
+
+            try {
+                const curlProf = `curl -X GET "${urlProf}" \\n  -H "Content-Type: application/json"${TOKEN ? ` \\n  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
+                const curlLabs = `curl -X GET "${urlLabs}" \\n  -H "Content-Type: application/json"${TOKEN ? ` \\n  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
+                const curlSem = `curl -X GET "${urlSem}" \\n  -H "Content-Type: application/json"${TOKEN ? ` \\n  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
+
+                console.info("🔍 CURL (usuarios/professores):\n" + curlProf);
+                console.info("🔍 CURL (laboratorios):\n" + curlLabs);
+                console.info("🔍 CURL (semestre):\n" + curlSem);
+            } catch (err) {
+                console.warn("Não foi possível montar CURLs de debug para selects:", err);
+            }
+
             const [resProfessores, resLabs, resSemestres] = await Promise.all([
-                fetch(`${BASE_URL}/usuarios/professores`, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined }),
-                fetch(`${BASE_URL}/laboratorios`, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined }),
-                fetch(`${BASE_URL}/semestre`, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined }),
+                fetch(urlProf, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined }),
+                fetch(urlLabs, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined }),
+                fetch(urlSem, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined }),
             ]);
 
-            const professoresData = await resProfessores.json();
-            const laboratoriosData = await resLabs.json();
-            const semestresData = await resSemestres.json();
+            const professoresData = await resProfessores.json().catch(() => []);
+            const laboratoriosData = await resLabs.json().catch(() => []);
+            const semestresData = await resSemestres.json().catch(() => []);
 
             setUsuarios(Array.isArray(professoresData) ? professoresData : []);
             setLaboratorios(Array.isArray(laboratoriosData) ? laboratoriosData : []);
@@ -97,32 +120,48 @@ export default function ReservasFixasPage() {
         fetchSelects();
     }, []);
 
+    // quando os semestres forem carregados, tenta encontrar o semestre que contém a data atual
+    useEffect(() => {
+        if (!semestres || semestres.length === 0) return;
+        try {
+            const hoje = new Date();
+            const found = semestres.find((s) => {
+                const start = new Date(s.dataInicio);
+                const end = new Date(s.dataFim);
+                // inclui limites
+                return start <= hoje && hoje <= end;
+            }) || null;
+            setSemestreEncontrado(found);
+            // define o selectedSemestre automaticamente se encontrado
+            setSelectedSemestre(found ? found.id : "");
+        } catch (err) {
+            console.warn('Erro ao encontrar semestre por data:', err);
+        }
+    }, [semestres]);
+
     const fetchTodasReservasFixas = async () => {
         if (!selectedLab) return;
         setLoading(true);
         try {
             const today = new Date();
 
-            // Calcula início e fim da semana
             const startOfWeek = new Date(today);
             startOfWeek.setDate(today.getDate() - today.getDay());
             const endOfWeek = new Date(startOfWeek);
             endOfWeek.setDate(startOfWeek.getDate() + 6);
 
-            // Formata para ISO sem milissegundos
             const dataInicioStr = startOfWeek.toISOString().slice(0, 19);
             const dataFimStr = endOfWeek.toISOString().slice(0, 19);
 
-            // URL do novo endpoint
             const url = `${BASE_URL}/reserva/laboratorio/${selectedLab}/periodo/fixas/todas?dataInicio=${dataInicioStr}&dataFim=${dataFimStr}`;
 
-            // Monta o curl equivalente para debug
-            const curlCommand = `
-    curl -X GET "${url}" \\
-    -H "Content-Type: application/json"${TOKEN ? ` \\\n-H "Authorization: Bearer ${TOKEN}"` : ""}`;
-            console.log("🔍 CURL equivalente:\n", curlCommand);
+            try {
+                const curlCommand = `curl -X GET "${url}" \\n  -H "Content-Type: application/json"${TOKEN ? ` \\n  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
+                console.info("🔍 CURL equivalente:\n", curlCommand);
+            } catch (err) {
+                console.warn("Não foi possível montar CURL de debug para reservas fixas:", err);
+            }
 
-            // Executa o fetch real
             const res = await fetch(url, {
                 headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
             });
@@ -194,6 +233,22 @@ export default function ReservasFixasPage() {
                 horaFim,
             };
 
+            try {
+                const bodyString = JSON.stringify(body, null, 2);
+                const safeBodyForShell = bodyString.replace(/'/g, "'\"'\"'");
+                const authHeader = TOKEN ? `  -H \"Authorization: Bearer ${TOKEN}\" \\n` : "";
+                const curl = [
+                    `curl -X POST "${BASE_URL}/reserva/fixa" \\`,
+                    `  -H "Content-Type: application/json" \\`,
+                    authHeader ? `${authHeader.trim()}` : "",
+                    `  -d '${safeBodyForShell}'`
+                ].filter(Boolean).join("\n");
+
+                console.info("🧾 CURL equivalente (copiar/colar no terminal):\n" + curl);
+            } catch (err) {
+                console.warn("Não foi possível montar CURL de debug para criar reserva fixa:", err);
+            }
+
             const res = await fetch(`${BASE_URL}/reserva/fixa`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}) },
@@ -217,6 +272,55 @@ export default function ReservasFixasPage() {
         }
     };
 
+    // NOVA FUNÇÃO: cancelar reserva fixa (todas as ocorrências)
+    const handleCancelarFixa = async (id?: number) => {
+        if (!id) return;
+        if (!TOKEN) {
+            setErrorMessage("Usuário não autenticado");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const url = `${BASE_URL}/reserva/${id}/cancelar/fixa/total`;
+
+            // CURL de debug
+            try {
+                const curl = `curl -X PUT "${url}" \\n  -H "Authorization: Bearer ${TOKEN}"`;
+                console.info(`🔍 CURL (cancelar fixa):\n${curl}`);
+            } catch (e) { /* silent */ }
+
+            const res = await fetch(url, {
+                method: "PUT",
+                headers: { Authorization: `Bearer ${TOKEN}` },
+            });
+
+            if (!res.ok) {
+                const text = await res.text().catch(() => "");
+                let data;
+                try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
+                const msg = data?.mensagem || data?.message || text || "Erro ao cancelar reserva fixa";
+                setErrorMessage(msg);
+                return;
+            }
+
+            // sucesso: apenas fechar dialog e limpar seleção
+            setOpenDialogDetalhes(false);
+            setSelectedReserva(null);
+        } catch (err) {
+            console.error("Erro ao cancelar reserva fixa:", err);
+            setErrorMessage("Falha na conexão ao cancelar reserva fixa");
+        } finally {
+            // Recarrega as reservas sempre que terminar (sucesso ou erro)
+            try {
+                await fetchTodasReservasFixas();
+            } catch (e) {
+                console.warn("Erro ao recarregar reservas após cancelar:", e);
+            }
+            setLoading(false);
+        }
+    };
+
     const renderEventContent = (eventInfo: any) => {
         const { event } = eventInfo;
         const startHour = event.startTime ?? "";
@@ -231,30 +335,48 @@ export default function ReservasFixasPage() {
         );
     };
 
+    const handleEventClick = async (clickInfo: any) => {
+        const ext = clickInfo.event.extendedProps;
+        let reserva: ReservaFixa | null = ext && ext.reserva ? (ext.reserva as ReservaFixa) : null;
+
+        if (reserva) {
+            if (!reserva.disciplina) {
+                try {
+                    const res = await fetch(`${BASE_URL}/reserva/${reserva.id}`, {
+                        headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined,
+                    });
+                    if (res.ok) {
+                        const text = await res.text();
+                        const data = text ? JSON.parse(text) : null;
+                        if (data) reserva = data;
+                    }
+                } catch (err) {
+                    console.warn("Não foi possível buscar reserva detalhada:", err);
+                }
+            }
+        }
+
+        setSelectedReserva(reserva);
+        setOpenDialogDetalhes(true);
+    };
+
     return (
         <div className="flex min-h-screen bg-gray-50">
             <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
             {sidebarOpen && <div className="fixed inset-0 bg-black/30 z-40 md:hidden" onClick={() => setSidebarOpen(false)} aria-hidden />}
 
             <div className="flex-1 flex flex-col min-h-screen">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-indigo-600 via-sky-500 to-indigo-500 text-white py-4 px-4 sm:px-6 flex items-center justify-between shadow-lg">
-                    {/* Botão do mobile */}
-                    <button
-                        className="md:hidden mr-2 p-2 rounded-lg hover:bg-indigo-500 transition"
-                        onClick={() => setSidebarOpen(true)}
-                    >
-                        <Menu className="w-6 h-6 text-white" />
+                <header className="p-4 bg-white/70 backdrop-blur-lg md:hidden flex items-center shadow-lg sticky top-0 z-10 border-b border-white/20">
+                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-violet-600 hover:text-violet-700 hover:bg-violet-50 p-2 rounded-xl transition-colors">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
                     </button>
-
-                    <h1 className="text-lg sm:text-xl font-semibold flex-1 text-center md:text-left">
-                        Calendário de Reservas Fixas
-                    </h1>
-                </div>
+                    <h1 className="ml-3 font-bold text-lg text-gray-800">Sistema de Reservas</h1>
+                </header>
 
                 <main className="flex-1 p-3 sm:p-6 md:p-8 w-full">
                     <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100">
-
                         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
                             <select className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedLab} onChange={(e) => setSelectedLab(Number(e.target.value))}>
                                 <option value="">Selecione o laboratório</option>
@@ -274,6 +396,7 @@ export default function ReservasFixasPage() {
                             headerToolbar={false}
                             events={eventsState}
                             eventContent={renderEventContent}
+                            eventClick={handleEventClick}
                             slotMinTime="07:00:00"
                             slotMaxTime="22:00:00"
                             allDaySlot={false}
@@ -284,7 +407,7 @@ export default function ReservasFixasPage() {
             </div>
 
             {/* Dialog de cadastro */}
-            <Dialog open={openDialogCadastro} onOpenChange={(open) => { setOpenDialogCadastro(open); if (!open) resetCadastroDialog(); }}>
+            <Dialog open={openDialogCadastro} onOpenChange={(open) => { setOpenDialogCadastro(open); if (!open) resetCadastroDialog(); else { /* quando abrir, selectedSemestre já foi setado pelo useEffect que observa semestres */ } }}>
                 <DialogContent className="max-w-md rounded-xl">
                     <DialogHeader>
                         <DialogTitle>Nova Reserva Fixa</DialogTitle>
@@ -295,10 +418,17 @@ export default function ReservasFixasPage() {
                                     {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.nome}</option>))}
                                 </select>
 
-                                <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedSemestre} onChange={(e) => setSelectedSemestre(Number(e.target.value))}>
-                                    <option value="">Selecione o semestre</option>
-                                    {semestres.map((s) => (<option key={s.id} value={s.id}>{s.descricao}</option>))}
-                                </select>
+                                {/* se encontramos um semestre pela data atual, mostramos apenas essa opção e desabilitamos o select */}
+                                {semestreEncontrado ? (
+                                    <select className="border rounded-lg px-3 py-2 w-full bg-gray-100 cursor-not-allowed" value={selectedSemestre} disabled>
+                                        <option value="">{semestreEncontrado.descricao || `${semestreEncontrado.dataInicio} - ${semestreEncontrado.dataFim}`}</option>
+                                    </select>
+                                ) : (
+                                    <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedSemestre} onChange={(e) => setSelectedSemestre(Number(e.target.value))}>
+                                        <option value="">Selecione o semestre</option>
+                                        {semestres.map((s) => (<option key={s.id} value={s.id}>{s.descricao}</option>))}
+                                    </select>
+                                )}
 
                                 <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={diaSemana} onChange={(e) => setDiaSemana(Number(e.target.value))}>
                                     <option value={1}>Segunda</option>
@@ -320,6 +450,49 @@ export default function ReservasFixasPage() {
                     <DialogFooter className="space-x-2">
                         <Button onClick={handleSalvarReservaFixa}>Salvar</Button>
                         <Button variant="ghost" onClick={() => setOpenDialogCadastro(false)}>Cancelar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* DIALOG DE DETALHES: abre ao clicar na reserva */}
+            <Dialog open={openDialogDetalhes} onOpenChange={(open) => setOpenDialogDetalhes(open)}>
+                <DialogContent className="max-w-md rounded-xl">
+                    <DialogHeader>
+                        <DialogTitle>Detalhes da Reserva Fixa</DialogTitle>
+                        <DialogDescription asChild>
+                            <div className="space-y-2 mt-2">
+                                {selectedReserva ? (
+                                    <>
+                                        <div><strong>Usuário:</strong> {selectedReserva.usuario?.nome} ({selectedReserva.usuario?.login})</div>
+                                        <div><strong>Laboratório:</strong> {selectedReserva.laboratorio?.nome}</div>
+                                        {selectedReserva.disciplina && (
+                                            <div><strong>Disciplina:</strong> {selectedReserva.disciplina.nome}{selectedReserva.disciplina.descricao ? ` — ${selectedReserva.disciplina.descricao}` : ""}</div>
+                                        )}
+                                        <div><strong>Status:</strong> {selectedReserva.status ?? "-"}</div>
+                                        {selectedReserva.dataInicio ? (
+                                            <div><strong>Início:</strong> {selectedReserva.dataInicio} <br /><strong>Fim:</strong> {selectedReserva.dataFim ?? "-"}</div>
+                                        ) : (
+                                            <div><strong>Recorrência:</strong> dia {selectedReserva.diaSemana ?? "-"} — {selectedReserva.horaInicio ?? "-"} até {selectedReserva.horaFim ?? "-"}</div>
+                                        )}
+                                        <div><strong>Semestre:</strong> {selectedReserva.semestre?.descricao ?? "-"}</div>
+                                    </>
+                                ) : (
+                                    <div>Reserva não encontrada</div>
+                                )}
+                            </div>
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex justify-end gap-2">
+                        <Button variant="destructive"
+                            onClick={() => handleCancelarFixa(selectedReserva?.id ?? undefined)}
+                            disabled={loading || !selectedReserva}
+                        >
+                            {loading ? "Processando..." : "Cancelar reserva"}
+                        </Button>
+
+                        <Button onClick={() => { setOpenDialogDetalhes(false); setSelectedReserva(null); }}>
+                            Fechar
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
