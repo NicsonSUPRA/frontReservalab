@@ -97,8 +97,7 @@ export default function ReservasPage() {
 
     const resetCadastroDialog = () => {
         setSelectedUser("");
-        setSelectedLab("");
-        setSelectedSemestre("");
+        // mantemos selectedLab e selectedSemestre conforme você pediu anteriormente
         setSemestreEncontrado(null);
         setHoraInicio("08:00");
         setHoraFim("10:00");
@@ -299,10 +298,15 @@ export default function ReservasPage() {
     // 1) se extendedProps.reserva já tem disciplina -> usa direto
     // 2) se não tem disciplina, mas usuario.disciplinas tem exatamente 1 -> usa como fallback
     // 3) se ainda não tiver -> tenta buscar /reserva/{id} no backend para obter dados completos
+    // Além disso, coloca a data da ocorrência clicada em dataSelecionada (se disponível).
     // -----------------------
     const handleEventClick = async (clickInfo: any) => {
         const ext = clickInfo.event.extendedProps;
         let reserva: Reserva | null = ext && ext.reserva ? (ext.reserva as Reserva) : null;
+
+        // tenta extrair a data da ocorrência clicada (FullCalendar fornece event.start para a ocorrência)
+        const occurrenceDate = clickInfo.event.start ? new Date(clickInfo.event.start) : null;
+        const occurrenceDateStr = occurrenceDate ? occurrenceDate.toISOString().split("T")[0] : "";
 
         if (reserva) {
             // fallback rápido: se o usuário só tem 1 disciplina, presume que é essa (útil quando a API não retorna disciplina)
@@ -328,6 +332,18 @@ export default function ReservasPage() {
         }
 
         setSelectedReserva(reserva);
+        // se a ocorrência clicada tem data, usamos ela para operações como cancelar exceção
+        if (occurrenceDateStr) {
+            setDataSelecionada(occurrenceDateStr);
+        } else if (reserva?.dataInicio) {
+            // fallback: se a reserva tiver dataInicio (reserva normal), guardamos ela
+            const iso = new Date(reserva.dataInicio).toISOString().split("T")[0];
+            setDataSelecionada(iso);
+        } else {
+            // caso contrário, limpa (o usuário pode selecionar data manualmente com dateClick)
+            setDataSelecionada("");
+        }
+
         setOpenDialogDetalhes(true);
     };
 
@@ -495,13 +511,21 @@ export default function ReservasPage() {
     };
 
 
+    // -----------------------
+    // Cancelar reserva fixa (envia dataSelecionada)
+    // -----------------------
     const handleCancelarReservaFixa = async () => {
         if (!selectedReserva) return;
 
         try {
+            // Usa dataSelecionada (preenchida no dateClick ou eventClick), com fallback para dataInicio da reserva
+            const dateToSend =
+                dataSelecionada ||
+                (selectedReserva.dataInicio ? selectedReserva.dataInicio.split("T")[0] : null);
+
             const body = {
                 reservaFixaId: selectedReserva.id,
-                data: selectedReserva.dataInicio?.split("T")[0],
+                data: dateToSend,
                 tipo: "CANCELADA",
                 motivo: "Cancelamento via Front"
             };
@@ -541,6 +565,7 @@ export default function ReservasPage() {
                 fetchReservasPorLab(selectedReserva.laboratorio.id);
             }
 
+            // limpa seleção de detalhe (mas preserva dataSelecionada caso queira cancelar outra ocorrência)
             setSelectedReserva(null);
             setOpenDialogDetalhes(false);
         } catch (err) {
