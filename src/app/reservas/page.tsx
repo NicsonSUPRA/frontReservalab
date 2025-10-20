@@ -452,7 +452,17 @@ export default function ReservasPage() {
     // -----------------------
     const handleCancelarReserva = async () => {
         if (!selectedReserva) return;
+
         try {
+            // Monta e printa o CURL equivalente
+            const curl = [
+                `curl -X PUT "${BASE_URL}/reserva/${selectedReserva.id}/cancelar" \\`,
+                `  -H "Content-Type: application/json" \\`,
+                TOKEN ? `  -H "Authorization: Bearer ${TOKEN}"` : ""
+            ].filter(Boolean).join("\n");
+
+            console.info("🧾 CURL equivalente para debug:\n" + curl);
+
             const res = await fetch(`${BASE_URL}/reserva/${selectedReserva.id}/cancelar`, {
                 method: "PUT",
                 headers: {
@@ -484,6 +494,7 @@ export default function ReservasPage() {
         }
     };
 
+
     const handleCancelarReservaFixa = async () => {
         if (!selectedReserva) return;
 
@@ -494,6 +505,17 @@ export default function ReservasPage() {
                 tipo: "CANCELADA",
                 motivo: "Cancelamento via Front"
             };
+
+            // Monta e printa o CURL equivalente
+            const bodyString = JSON.stringify(body, null, 2).replace(/'/g, "'\"'\"'");
+            const curl = [
+                `curl -X POST "${BASE_URL}/reserva/fixa/excecao/cancelar" \\`,
+                `  -H "Content-Type: application/json" \\`,
+                TOKEN ? `  -H "Authorization: Bearer ${TOKEN}" \\` : "",
+                `  -d '${bodyString}'`
+            ].filter(Boolean).join("\n");
+
+            console.info("🧾 CURL equivalente para debug:\n" + curl);
 
             const res = await fetch(`${BASE_URL}/reserva/fixa/excecao/cancelar`, {
                 method: "POST",

@@ -54,7 +54,7 @@ export default function ReservasFixasPage() {
     const [laboratorios, setLaboratorios] = useState<Laboratorio[]>([]);
     const [semestres, setSemestres] = useState<Semestre[]>([]);
 
-    // novo estado que guarda o semestre "encontrado" (por data)
+    // guarda o semestre "encontrado" (por data)
     const [semestreEncontrado, setSemestreEncontrado] = useState<Semestre | null>(null);
 
     const [selectedUser, setSelectedUser] = useState<string>("");
@@ -70,9 +70,10 @@ export default function ReservasFixasPage() {
     const TOKEN = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
     const resetCadastroDialog = () => {
+        // NÃO resetar selectedLab nem selectedSemestre para preservar as escolhas do usuário
         setSelectedUser("");
-        setSelectedLab("");
-        setSelectedSemestre("");
+        // setSelectedLab(""); <- intentionally removed: keep lab selecionado
+        // setSelectedSemestre(""); <- intentionally removed: keep semestre selecionado
         setDiaSemana(1);
         setHoraInicio("08:00");
         setHoraFim("10:00");
@@ -81,14 +82,20 @@ export default function ReservasFixasPage() {
 
     const fetchSelects = async () => {
         try {
-            const urlProf = `${BASE_URL}/usuarios/professores`;
+            const urlProf = `${BASE_URL}/usuarios/professores-comp`;
             const urlLabs = `${BASE_URL}/laboratorios`;
             const urlSem = `${BASE_URL}/semestre`;
 
             try {
-                const curlProf = `curl -X GET "${urlProf}" \\n  -H "Content-Type: application/json"${TOKEN ? ` \\n  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
-                const curlLabs = `curl -X GET "${urlLabs}" \\n  -H "Content-Type: application/json"${TOKEN ? ` \\n  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
-                const curlSem = `curl -X GET "${urlSem}" \\n  -H "Content-Type: application/json"${TOKEN ? ` \\n  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
+                const curlProf = `curl -X GET "${urlProf}" \\
+  -H "Content-Type: application/json"${TOKEN ? ` \\
+  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
+                const curlLabs = `curl -X GET "${urlLabs}" \\
+  -H "Content-Type: application/json"${TOKEN ? ` \\
+  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
+                const curlSem = `curl -X GET "${urlSem}" \\
+  -H "Content-Type: application/json"${TOKEN ? ` \\
+  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
 
                 console.info("🔍 CURL (usuarios/professores):\n" + curlProf);
                 console.info("🔍 CURL (laboratorios):\n" + curlLabs);
@@ -128,23 +135,27 @@ export default function ReservasFixasPage() {
             const found = semestres.find((s) => {
                 const start = new Date(s.dataInicio);
                 const end = new Date(s.dataFim);
-                // inclui limites
                 return start <= hoje && hoje <= end;
             }) || null;
             setSemestreEncontrado(found);
-            // define o selectedSemestre automaticamente se encontrado
-            setSelectedSemestre(found ? found.id : "");
+            // se encontrou, define selectedSemestre apenas se ainda estiver vazio
+            if (!selectedSemestre && found) setSelectedSemestre(found.id);
         } catch (err) {
             console.warn('Erro ao encontrar semestre por data:', err);
         }
     }, [semestres]);
 
-    const fetchTodasReservasFixas = async () => {
-        if (!selectedLab) return;
+    // busca todas reservas fixas — aceita labIdParam opcional (se não informado usa selectedLab)
+    const fetchTodasReservasFixas = async (labIdParam?: number | "") => {
+        const labId = typeof labIdParam !== "undefined" ? labIdParam : selectedLab;
+        if (!labId) {
+            setReservasFixas([]);
+            setEventsState([]);
+            return;
+        }
         setLoading(true);
         try {
             const today = new Date();
-
             const startOfWeek = new Date(today);
             startOfWeek.setDate(today.getDate() - today.getDay());
             const endOfWeek = new Date(startOfWeek);
@@ -153,10 +164,12 @@ export default function ReservasFixasPage() {
             const dataInicioStr = startOfWeek.toISOString().slice(0, 19);
             const dataFimStr = endOfWeek.toISOString().slice(0, 19);
 
-            const url = `${BASE_URL}/reserva/laboratorio/${selectedLab}/periodo/fixas/todas?dataInicio=${dataInicioStr}&dataFim=${dataFimStr}`;
+            const url = `${BASE_URL}/reserva/laboratorio/${Number(labId)}/periodo/fixas/todas?dataInicio=${dataInicioStr}&dataFim=${dataFimStr}`;
 
             try {
-                const curlCommand = `curl -X GET "${url}" \\n  -H "Content-Type: application/json"${TOKEN ? ` \\n  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
+                const curlCommand = `curl -X GET "${url}" \\
+  -H "Content-Type: application/json"${TOKEN ? ` \\
+  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
                 console.info("🔍 CURL equivalente:\n", curlCommand);
             } catch (err) {
                 console.warn("Não foi possível montar CURL de debug para reservas fixas:", err);
@@ -236,7 +249,7 @@ export default function ReservasFixasPage() {
             try {
                 const bodyString = JSON.stringify(body, null, 2);
                 const safeBodyForShell = bodyString.replace(/'/g, "'\"'\"'");
-                const authHeader = TOKEN ? `  -H \"Authorization: Bearer ${TOKEN}\" \\n` : "";
+                const authHeader = TOKEN ? `  -H \"Authorization: Bearer ${TOKEN}\" \n` : "";
                 const curl = [
                     `curl -X POST "${BASE_URL}/reserva/fixa" \\`,
                     `  -H "Content-Type: application/json" \\`,
@@ -256,23 +269,39 @@ export default function ReservasFixasPage() {
             });
 
             const text = await res.text();
-            const data = text ? JSON.parse(text) : null;
+            const data: ReservaFixa | null = text ? JSON.parse(text) : null;
 
             if (!res.ok) {
-                setErrorMessage(data?.errors?.join?.(", ") || "Erro ao criar reserva fixa");
+                setErrorMessage((data as any)?.errors?.join?.(", ") || "Erro ao criar reserva fixa");
                 return;
             }
 
-            fetchTodasReservasFixas();
+            // Optimistic: adiciona a reserva retornada imediatamente (se backend retornou o recurso)
+            if (data && data.id) {
+                setReservasFixas((prev) => {
+                    const next = [data, ...prev];
+                    setEventsState(mapReservasParaEventos(next));
+                    return next;
+                });
+            }
+
             setOpenDialogCadastro(false);
             resetCadastroDialog();
+
+            // Recarrega todas as reservas do laboratório que está selecionado (mantendo selectedLab)
+            try {
+                await fetchTodasReservasFixas(selectedLab);
+            } catch (e) {
+                console.warn("Erro ao recarregar reservas após criação:", e);
+            }
+
         } catch (err) {
             console.error(err);
             setErrorMessage("Erro de conexão com o servidor");
         }
     };
 
-    // NOVA FUNÇÃO: cancelar reserva fixa (todas as ocorrências)
+    // Ao cancelar, faz a requisição de novo para o mesmo laboratório que estava selecionado
     const handleCancelarFixa = async (id?: number) => {
         if (!id) return;
         if (!TOKEN) {
@@ -280,13 +309,17 @@ export default function ReservasFixasPage() {
             return;
         }
 
+        // captura o laboratório selecionado no momento do clique (pode ser "" quando nenhum selecionado)
+        const labNoMomento = selectedLab;
+
         setLoading(true);
         try {
             const url = `${BASE_URL}/reserva/${id}/cancelar/fixa/total`;
 
-            // CURL de debug
+            // debug curl
             try {
-                const curl = `curl -X PUT "${url}" \\n  -H "Authorization: Bearer ${TOKEN}"`;
+                const curl = `curl -X PUT "${url}" \\
+  -H "Authorization: Bearer ${TOKEN}"`;
                 console.info(`🔍 CURL (cancelar fixa):\n${curl}`);
             } catch (e) { /* silent */ }
 
@@ -304,19 +337,21 @@ export default function ReservasFixasPage() {
                 return;
             }
 
-            // sucesso: apenas fechar dialog e limpar seleção
+            // sucesso: fecha o dialog
             setOpenDialogDetalhes(false);
             setSelectedReserva(null);
+
+            // REQUISIÇÃO ADICIONAL: recarrega as reservas do laboratório que estava selecionado
+            try {
+                await fetchTodasReservasFixas(labNoMomento);
+            } catch (e) {
+                console.warn("Erro ao recarregar reservas após cancelar:", e);
+            }
+
         } catch (err) {
             console.error("Erro ao cancelar reserva fixa:", err);
             setErrorMessage("Falha na conexão ao cancelar reserva fixa");
         } finally {
-            // Recarrega as reservas sempre que terminar (sucesso ou erro)
-            try {
-                await fetchTodasReservasFixas();
-            } catch (e) {
-                console.warn("Erro ao recarregar reservas após cancelar:", e);
-            }
             setLoading(false);
         }
     };
@@ -378,7 +413,7 @@ export default function ReservasFixasPage() {
                 <main className="flex-1 p-3 sm:p-6 md:p-8 w-full">
                     <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-                            <select className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedLab} onChange={(e) => setSelectedLab(Number(e.target.value))}>
+                            <select className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedLab} onChange={(e) => setSelectedLab(e.target.value === "" ? "" : Number(e.target.value))}>
                                 <option value="">Selecione o laboratório</option>
                                 {laboratorios.map((l) => (<option key={l.id} value={l.id}>{l.nome}</option>))}
                             </select>
@@ -407,7 +442,7 @@ export default function ReservasFixasPage() {
             </div>
 
             {/* Dialog de cadastro */}
-            <Dialog open={openDialogCadastro} onOpenChange={(open) => { setOpenDialogCadastro(open); if (!open) resetCadastroDialog(); else { /* quando abrir, selectedSemestre já foi setado pelo useEffect que observa semestres */ } }}>
+            <Dialog open={openDialogCadastro} onOpenChange={(open) => { setOpenDialogCadastro(open); if (!open) resetCadastroDialog(); }}>
                 <DialogContent className="max-w-md rounded-xl">
                     <DialogHeader>
                         <DialogTitle>Nova Reserva Fixa</DialogTitle>

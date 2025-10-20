@@ -433,7 +433,9 @@ export default function UsuarioPage() {
                                         <div className="md:col-span-2 mt-4 border-t pt-4">
                                             <div className="flex items-center justify-between mb-3">
                                                 <h3 className="text-sm font-semibold">Disciplinas</h3>
-                                                <button type="button" onClick={adicionarDisciplina} className="px-3 py-1 bg-indigo-600 text-white rounded">Adicionar disciplina</button>
+                                                {isProfessorRole(roleSelecionada) && (
+                                                    <button type="button" onClick={adicionarDisciplina} className="px-3 py-1 bg-indigo-600 text-white rounded">Adicionar disciplina</button>
+                                                )}
                                             </div>
 
                                             {disciplinas.length === 0 && (
@@ -553,7 +555,7 @@ export default function UsuarioPage() {
                                                     </ul>
                                                 )}
 
-                                                {/* modo edição: mostra editor inline (agora SEM restrição de role) */}
+                                                {/* modo edição: mostra editor inline */}
                                                 {editando && disciplinas.length > 0 && (
                                                     <ul className="text-gray-700 list-inside space-y-2">
                                                         {disciplinas.map((d, i) => (
