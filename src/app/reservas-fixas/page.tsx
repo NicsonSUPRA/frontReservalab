@@ -237,7 +237,6 @@ export default function ReservasFixasPage() {
     useEffect(() => {
         setEventsState(mapReservasParaEventos(reservasFixas));
     }, [reservasFixas]);
-
     const handleSalvarReservaFixa = async () => {
         if (!selectedUser || !selectedLab || !selectedSemestre) {
             setErrorMessage("Preencha todos os campos obrigatórios.");
@@ -259,9 +258,24 @@ export default function ReservasFixasPage() {
                 body.disciplina = { id: selectedDisciplina };
             }
 
+            // Monta cURL equivalente para debug
+            const curlCommand = [
+                `curl -X POST "${BASE_URL}/reserva/fixa"`,
+                `-H "Content-Type: application/json"`,
+                TOKEN ? `-H "Authorization: Bearer ${TOKEN}"` : "",
+                `-d '${JSON.stringify(body, null, 2)}'`
+            ]
+                .filter(Boolean)
+                .join(" \\\n  ");
+
+            console.log("🌀 cURL equivalente para cadastro da reserva fixa:\n", curlCommand);
+
             const res = await fetch(`${BASE_URL}/reserva/fixa`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}) },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
+                },
                 body: JSON.stringify(body),
             });
 
@@ -286,7 +300,7 @@ export default function ReservasFixasPage() {
             setOpenDialogCadastro(false);
             resetCadastroDialog();
 
-            // Recarrega todas as reservas do laboratório que está selecionado (mantendo selectedLab)
+            // Recarrega todas as reservas do laboratório que está selecionado
             try {
                 await fetchTodasReservasFixas(selectedLab);
             } catch (e) {
