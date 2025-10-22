@@ -7,7 +7,6 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import ptBrLocale from "@fullcalendar/core/locales/pt-br";
 import Sidebar from "../components/Sidebar";
-import { Menu } from "lucide-react";
 
 import {
     Dialog,
@@ -20,7 +19,8 @@ import {
 import { Button } from "@/components/ui/button";
 import ErrorAlert from "../components/ErrorAlert";
 
-interface Usuario { id: string; login: string; nome: string; roles?: string[]; disciplinas?: any[]; }
+interface Disciplina { id?: number; nome?: string; descricao?: string; usuario?: { id: string } | null; }
+interface Usuario { id: string; login: string; nome: string; roles?: string[]; disciplinas?: Disciplina[]; }
 interface Laboratorio { id: number; nome: string; }
 interface Semestre { id: number; dataInicio: string; dataFim: string; descricao?: string; }
 interface ReservaFixa {
@@ -64,6 +64,10 @@ export default function ReservasFixasPage() {
     const [horaInicio, setHoraInicio] = useState<string>("08:00");
     const [horaFim, setHoraFim] = useState<string>("10:00");
 
+    // disciplinas relacionadas ao usuário selecionado + seleção
+    const [disciplinasAtuais, setDisciplinasAtuais] = useState<Disciplina[]>([]);
+    const [selectedDisciplina, setSelectedDisciplina] = useState<number | "">("");
+
     const [errorMessage, setErrorMessage] = useState<string>("");
 
     const calendarRef = useRef<any>(null);
@@ -72,12 +76,13 @@ export default function ReservasFixasPage() {
     const resetCadastroDialog = () => {
         // NÃO resetar selectedLab nem selectedSemestre para preservar as escolhas do usuário
         setSelectedUser("");
-        // setSelectedLab(""); <- intentionally removed: keep lab selecionado
-        // setSelectedSemestre(""); <- intentionally removed: keep semestre selecionado
         setDiaSemana(1);
         setHoraInicio("08:00");
         setHoraFim("10:00");
         setSemestreEncontrado(null);
+        // reset disciplinas
+        setDisciplinasAtuais([]);
+        setSelectedDisciplina("");
     };
 
     const fetchSelects = async () => {
@@ -85,24 +90,6 @@ export default function ReservasFixasPage() {
             const urlProf = `${BASE_URL}/usuarios/professores-comp`;
             const urlLabs = `${BASE_URL}/laboratorios`;
             const urlSem = `${BASE_URL}/semestre`;
-
-            try {
-                const curlProf = `curl -X GET "${urlProf}" \\
-  -H "Content-Type: application/json"${TOKEN ? ` \\
-  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
-                const curlLabs = `curl -X GET "${urlLabs}" \\
-  -H "Content-Type: application/json"${TOKEN ? ` \\
-  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
-                const curlSem = `curl -X GET "${urlSem}" \\
-  -H "Content-Type: application/json"${TOKEN ? ` \\
-  -H "Authorization: Bearer ${TOKEN}"` : ""}`;
-
-                console.info("🔍 CURL (usuarios/professores):\n" + curlProf);
-                console.info("🔍 CURL (laboratorios):\n" + curlLabs);
-                console.info("🔍 CURL (semestre):\n" + curlSem);
-            } catch (err) {
-                console.warn("Não foi possível montar CURLs de debug para selects:", err);
-            }
 
             const [resProfessores, resLabs, resSemestres] = await Promise.all([
                 fetch(urlProf, { headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : undefined }),
@@ -145,6 +132,26 @@ export default function ReservasFixasPage() {
         }
     }, [semestres]);
 
+    // Quando o usuário selecionado mudar, atualiza disciplinasAtuais para mostrar apenas as disciplinas do usuário
+    useEffect(() => {
+        if (!selectedUser) {
+            setDisciplinasAtuais([]);
+            setSelectedDisciplina("");
+            return;
+        }
+
+        const user = usuarios.find((u) => u.id === selectedUser);
+        if (user && Array.isArray(user.disciplinas) && user.disciplinas.length > 0) {
+            setDisciplinasAtuais(user.disciplinas);
+        } else {
+            // se o usuário não tem disciplinas, limpa o array
+            setDisciplinasAtuais([]);
+        }
+
+        // reset seleção de disciplina ao trocar usuário
+        setSelectedDisciplina("");
+    }, [selectedUser, usuarios]);
+
     // busca todas reservas fixas — aceita labIdParam opcional (se não informado usa selectedLab)
     const fetchTodasReservasFixas = async (labIdParam?: number | "") => {
         const labId = typeof labIdParam !== "undefined" ? labIdParam : selectedLab;
@@ -166,11 +173,12 @@ export default function ReservasFixasPage() {
 
             const url = `${BASE_URL}/reserva/laboratorio/${Number(labId)}/periodo/fixas/todas?dataInicio=${dataInicioStr}&dataFim=${dataFimStr}`;
 
+            // **ADICIONEI O CONSOLE.LOG DO CURL AQUI PARA DEBUG**
             try {
-                const curlCommand = `curl -X GET "${url}" \\
-  -H "Content-Type: application/json"${TOKEN ? ` \\
+                const curlCommand = `curl -X GET "${url}" \
+  -H "Content-Type: application/json"${TOKEN ? ` \
   -H "Authorization: Bearer ${TOKEN}"` : ""}`;
-                console.info("🔍 CURL equivalente:\n", curlCommand);
+                console.info(`🔍 CURL equivalente (buscar reservas fixas):\n${curlCommand}`);
             } catch (err) {
                 console.warn("Não foi possível montar CURL de debug para reservas fixas:", err);
             }
@@ -214,8 +222,8 @@ export default function ReservasFixasPage() {
 
             return {
                 id: `fixa-${reserva.id}`,
-                title: `${reserva.usuario?.nome ?? "Usuário"} — ${reserva.laboratorio?.nome ?? "Lab"}`,
-                daysOfWeek: [dia % 7],
+                title: `${reserva.usuario?.nome ?? "Usuário"} — ${reserva.laboratorio?.nome ?? "Lab"}${reserva.disciplina?.nome ? ` — ${reserva.disciplina.nome}` : ""}`,
+                daysOfWeek: [Number(dia) % 7],
                 startTime: horaIni,
                 endTime: horaFi,
                 backgroundColor: color,
@@ -237,7 +245,7 @@ export default function ReservasFixasPage() {
         }
 
         try {
-            const body = {
+            const body: any = {
                 usuarioId: selectedUser,
                 laboratorioId: selectedLab,
                 semestreId: selectedSemestre,
@@ -246,20 +254,9 @@ export default function ReservasFixasPage() {
                 horaFim,
             };
 
-            try {
-                const bodyString = JSON.stringify(body, null, 2);
-                const safeBodyForShell = bodyString.replace(/'/g, "'\"'\"'");
-                const authHeader = TOKEN ? `  -H \"Authorization: Bearer ${TOKEN}\" \n` : "";
-                const curl = [
-                    `curl -X POST "${BASE_URL}/reserva/fixa" \\`,
-                    `  -H "Content-Type: application/json" \\`,
-                    authHeader ? `${authHeader.trim()}` : "",
-                    `  -d '${safeBodyForShell}'`
-                ].filter(Boolean).join("\n");
-
-                console.info("🧾 CURL equivalente (copiar/colar no terminal):\n" + curl);
-            } catch (err) {
-                console.warn("Não foi possível montar CURL de debug para criar reserva fixa:", err);
+            // incluir disciplina apenas se houver seleção
+            if (selectedDisciplina !== "" && selectedDisciplina !== undefined) {
+                body.disciplina = { id: selectedDisciplina };
             }
 
             const res = await fetch(`${BASE_URL}/reserva/fixa`, {
@@ -280,6 +277,7 @@ export default function ReservasFixasPage() {
             if (data && data.id) {
                 setReservasFixas((prev) => {
                     const next = [data, ...prev];
+                    // atualiza events state com o novo array
                     setEventsState(mapReservasParaEventos(next));
                     return next;
                 });
@@ -316,13 +314,6 @@ export default function ReservasFixasPage() {
         try {
             const url = `${BASE_URL}/reserva/${id}/cancelar/fixa/total`;
 
-            // debug curl
-            try {
-                const curl = `curl -X PUT "${url}" \\
-  -H "Authorization: Bearer ${TOKEN}"`;
-                console.info(`🔍 CURL (cancelar fixa):\n${curl}`);
-            } catch (e) { /* silent */ }
-
             const res = await fetch(url, {
                 method: "PUT",
                 headers: { Authorization: `Bearer ${TOKEN}` },
@@ -341,7 +332,7 @@ export default function ReservasFixasPage() {
             setOpenDialogDetalhes(false);
             setSelectedReserva(null);
 
-            // REQUISIÇÃO ADICIONAL: recarrega as reservas do laboratório que estava selecionado
+            // RECARREGA reservas
             try {
                 await fetchTodasReservasFixas(labNoMomento);
             } catch (e) {
@@ -383,7 +374,16 @@ export default function ReservasFixasPage() {
                     if (res.ok) {
                         const text = await res.text();
                         const data = text ? JSON.parse(text) : null;
-                        if (data) reserva = data;
+                        if (data) {
+                            reserva = data;
+                            // atualiza lista local de reservasFixas com os dados completos (para próxima vez já vir com disciplina)
+                            setReservasFixas((prev) => {
+                                const next = prev.map((r) => (r.id === reserva!.id ? reserva! : r));
+                                // atualiza eventos também
+                                setEventsState(mapReservasParaEventos(next));
+                                return next;
+                            });
+                        }
                     }
                 } catch (err) {
                     console.warn("Não foi possível buscar reserva detalhada:", err);
@@ -452,6 +452,23 @@ export default function ReservasFixasPage() {
                                     <option value="">Selecione o usuário</option>
                                     {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.nome}</option>))}
                                 </select>
+
+                                {/* Disciplina (opcional) — pega disciplinas do usuário selecionado */}
+                                <div>
+                                    <label className="text-sm font-medium text-gray-700 mb-1 block">Disciplina (opcional)</label>
+                                    <select
+                                        className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        value={selectedDisciplina}
+                                        onChange={(e) => setSelectedDisciplina(e.target.value === "" ? "" : Number(e.target.value))}
+                                        disabled={!selectedUser || disciplinasAtuais.length === 0}
+                                    >
+                                        <option value="">Nenhuma disciplina</option>
+                                        {disciplinasAtuais.map((d) => (
+                                            <option key={d.id} value={d.id}>{d.nome}{d.descricao ? ` — ${d.descricao}` : ""}</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">Se o usuário tiver disciplinas cadastradas, selecione para associar (opcional).</p>
+                                </div>
 
                                 {/* se encontramos um semestre pela data atual, mostramos apenas essa opção e desabilitamos o select */}
                                 {semestreEncontrado ? (
