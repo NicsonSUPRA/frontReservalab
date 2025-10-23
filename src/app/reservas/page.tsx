@@ -242,17 +242,21 @@ export default function ReservasPage() {
         }
     };
 
+
     const mapReservasParaEventos = (lista: Reserva[]): EventInput[] => {
         if (!Array.isArray(lista)) return [];
         return lista.flatMap((reserva) => {
-            const color =
-                reserva.status === "APROVADA"
-                    ? "#16a34a"
-                    : reserva.status === "PENDENTE"
-                        ? "#f59e0b"
-                        : reserva.tipo === "FIXA"
-                            ? "#22c55e"
-                            : "#6366f1";
+            const isReservaFixa = reserva.tipo === "FIXA" ? true : false;
+            const color: string = (isReservaFixa && reserva.status === null)
+                ? "#22c55e" // Verde para FIXA com status null
+                : reserva.status === "CONFIRMADA"
+                    ? "#0c92b4ff" // AZUL para CONFIRMADA
+                    : reserva.status === "APROVADA"
+                        ? "#16a34a"
+                        : reserva.status === "PENDENTE"
+                            ? "#f59e0b"
+                            : "#3537c2ff";
+
 
             const outputs: EventInput[] = [];
 
@@ -348,7 +352,7 @@ export default function ReservasPage() {
     };
 
     // -----------------------
-    // Buscar semestre por data (chama o endpoint que você criou)
+    // Buscar semestre por data (apenas loga o CURL do endpoint e retorna null)
     // -----------------------
     const fetchSemestrePorData = async (data: string) => {
         if (!data) return null;
@@ -574,6 +578,74 @@ export default function ReservasPage() {
         }
     };
 
+    // -----------------------
+    // Confirmar reserva fixa (envia dataSelecionada)
+    // -----------------------
+    const handleConfirmarReservaFixa = async () => {
+        if (!selectedReserva) return;
+
+        try {
+            // Usa dataSelecionada (preenchida no dateClick ou eventClick), com fallback para dataInicio da reserva
+            const dateToSend =
+                dataSelecionada ||
+                (selectedReserva.dataInicio ? selectedReserva.dataInicio.split("T")[0] : null);
+
+            const body = {
+                reservaFixaId: selectedReserva.id,
+                data: dateToSend,
+                tipo: "CONFIRMADA",
+                motivo: "Confirmação via Front"
+            };
+
+            // Monta e printa o CURL equivalente (útil para debug)
+            const bodyString = JSON.stringify(body, null, 2).replace(/'/g, "'\"'\"'");
+            const curl = [
+                `curl -X POST "${BASE_URL}/reserva/fixa/excecao/confirmar" \\`,
+                `  -H "Content-Type: application/json" \\`,
+                TOKEN ? `  -H "Authorization: Bearer ${TOKEN}" \\` : "",
+                `  -d '${bodyString}'`
+            ].filter(Boolean).join("\n");
+
+            console.info("🧾 CURL equivalente para debug (confirmar):\n" + curl);
+
+            setLoading(true);
+
+            const res = await fetch(`${BASE_URL}/reserva/fixa/excecao/confirmar`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${TOKEN}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(body),
+            });
+
+            if (!res.ok) {
+                let errMsg = "Erro ao confirmar reserva fixa";
+                try {
+                    const text = await res.text();
+                    const data = text ? JSON.parse(text) : null;
+                    errMsg = data?.message || data?.error || errMsg;
+                } catch { }
+                setErrorMessage(errMsg);
+                return;
+            }
+
+            // Recarrega reservas do laboratório se houver
+            if (selectedReserva.laboratorio?.id) {
+                fetchReservasPorLab(selectedReserva.laboratorio.id);
+            }
+
+            // limpa seleção de detalhe (mas preserva dataSelecionada caso queira confirmar outra ocorrência)
+            setSelectedReserva(null);
+            setOpenDialogDetalhes(false);
+        } catch (err) {
+            console.error("Erro ao confirmar reserva fixa", err);
+            setErrorMessage("Erro ao confirmar reserva fixa");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleAprovarReserva = async () => {
         if (!selectedReserva) return;
 
@@ -641,6 +713,31 @@ export default function ReservasPage() {
 
         return false;
     }
+
+    // -----------------------
+    // Ajuste pedido: determinar status exibido no diálogo
+    // -----------------------
+    const getDisplayStatus = (): string => {
+        if (!selectedReserva) return "-";
+        // se já tem status definido, retorna direto
+        if (selectedReserva.status) return selectedReserva.status;
+        // para FIXA, tentamos encontrar a ocorrência específica na lista `reservas`
+        if (selectedReserva.tipo === "FIXA") {
+            const occurrenceDate = dataSelecionada ||
+                (selectedReserva.dataInicio ? new Date(selectedReserva.dataInicio).toISOString().split("T")[0] : "");
+
+            if (occurrenceDate) {
+                // procura ocorrência com mesmo id (id informativo da fixa) e dataInicio começando com a data
+                const match = reservas.find(r =>
+                    r.id === selectedReserva.id &&
+                    r.dataInicio &&
+                    r.dataInicio.startsWith(occurrenceDate)
+                );
+                if (match && match.status) return match.status;
+            }
+        }
+        return "-";
+    };
 
     // -----------------------
     // Render event content (ajustado para mostrar disciplina)
@@ -776,7 +873,7 @@ export default function ReservasPage() {
                                         {selectedReserva.disciplina && (
                                             <div><strong>Disciplina:</strong> {selectedReserva.disciplina.nome}{selectedReserva.disciplina.descricao ? ` — ${selectedReserva.disciplina.descricao}` : ""}</div>
                                         )}
-                                        <div><strong>Status:</strong> {selectedReserva.status ?? "-"}</div>
+                                        <div><strong>Status:</strong> {getDisplayStatus()}</div>
                                         {selectedReserva.dataInicio ? (
                                             <div><strong>Início:</strong> {selectedReserva.dataInicio} <br /><strong>Fim:</strong> {selectedReserva.dataFim ?? "-"}</div>
                                         ) : (
@@ -805,6 +902,19 @@ export default function ReservasPage() {
                                     ) : null}
                                 </>
                             )}
+
+                            {/* Botão roxo-claro para confirmar utilização (visível para ADMIN ou PROF_COMP, só para FIXA e se não estiver confirmada) */}
+                            {(roles.includes("ADMIN") || roles.includes("PROF_COMP")) &&
+                                selectedReserva?.tipo === "FIXA" &&
+                                getDisplayStatus() !== "CONFIRMADA" && (
+                                    <Button
+                                        onClick={handleConfirmarReservaFixa}
+                                        disabled={loading}
+                                        className="bg-violet-300 hover:bg-violet-400 text-white"
+                                    >
+                                        {loading ? "Processando..." : "Confirmar utilização"}
+                                    </Button>
+                                )}
 
                             {roles.includes("ADMIN") &&
                                 selectedReserva?.tipo === "NORMAL" &&
