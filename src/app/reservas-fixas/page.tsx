@@ -54,7 +54,6 @@ export default function ReservasFixasPage() {
     const [laboratorios, setLaboratorios] = useState<Laboratorio[]>([]);
     const [semestres, setSemestres] = useState<Semestre[]>([]);
 
-    // guarda o semestre "encontrado" (por data)
     const [semestreEncontrado, setSemestreEncontrado] = useState<Semestre | null>(null);
 
     const [selectedUser, setSelectedUser] = useState<string>("");
@@ -64,7 +63,6 @@ export default function ReservasFixasPage() {
     const [horaInicio, setHoraInicio] = useState<string>("08:00");
     const [horaFim, setHoraFim] = useState<string>("10:00");
 
-    // disciplinas relacionadas ao usuário selecionado + seleção
     const [disciplinasAtuais, setDisciplinasAtuais] = useState<Disciplina[]>([]);
     const [selectedDisciplina, setSelectedDisciplina] = useState<number | "">("");
 
@@ -73,14 +71,20 @@ export default function ReservasFixasPage() {
     const calendarRef = useRef<any>(null);
     const TOKEN = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
+    const [isMobile, setIsMobile] = useState<boolean>(false);
+    useEffect(() => {
+        const handleResize = () => setIsMobile(typeof window !== "undefined" ? window.innerWidth < 640 : false);
+        handleResize();
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
     const resetCadastroDialog = () => {
-        // NÃO resetar selectedLab nem selectedSemestre para preservar as escolhas do usuário
         setSelectedUser("");
         setDiaSemana(1);
         setHoraInicio("08:00");
         setHoraFim("10:00");
         setSemestreEncontrado(null);
-        // reset disciplinas
         setDisciplinasAtuais([]);
         setSelectedDisciplina("");
     };
@@ -114,7 +118,6 @@ export default function ReservasFixasPage() {
         fetchSelects();
     }, []);
 
-    // quando os semestres forem carregados, tenta encontrar o semestre que contém a data atual
     useEffect(() => {
         if (!semestres || semestres.length === 0) return;
         try {
@@ -125,14 +128,12 @@ export default function ReservasFixasPage() {
                 return start <= hoje && hoje <= end;
             }) || null;
             setSemestreEncontrado(found);
-            // se encontrou, define selectedSemestre apenas se ainda estiver vazio
             if (!selectedSemestre && found) setSelectedSemestre(found.id);
         } catch (err) {
             console.warn('Erro ao encontrar semestre por data:', err);
         }
     }, [semestres]);
 
-    // Quando o usuário selecionado mudar, atualiza disciplinasAtuais para mostrar apenas as disciplinas do usuário
     useEffect(() => {
         if (!selectedUser) {
             setDisciplinasAtuais([]);
@@ -141,18 +142,11 @@ export default function ReservasFixasPage() {
         }
 
         const user = usuarios.find((u) => u.id === selectedUser);
-        if (user && Array.isArray(user.disciplinas) && user.disciplinas.length > 0) {
-            setDisciplinasAtuais(user.disciplinas);
-        } else {
-            // se o usuário não tem disciplinas, limpa o array
-            setDisciplinasAtuais([]);
-        }
-
-        // reset seleção de disciplina ao trocar usuário
+        if (user && Array.isArray(user.disciplinas) && user.disciplinas.length > 0) setDisciplinasAtuais(user.disciplinas);
+        else setDisciplinasAtuais([]);
         setSelectedDisciplina("");
     }, [selectedUser, usuarios]);
 
-    // busca todas reservas fixas — aceita labIdParam opcional (se não informado usa selectedLab)
     const fetchTodasReservasFixas = async (labIdParam?: number | "") => {
         const labId = typeof labIdParam !== "undefined" ? labIdParam : selectedLab;
         if (!labId) {
@@ -173,12 +167,12 @@ export default function ReservasFixasPage() {
 
             const url = `${BASE_URL}/reserva/laboratorio/${Number(labId)}/periodo/fixas/todas?dataInicio=${dataInicioStr}&dataFim=${dataFimStr}`;
 
-            // **ADICIONEI O CONSOLE.LOG DO CURL AQUI PARA DEBUG**
             try {
                 const curlCommand = `curl -X GET "${url}" \
   -H "Content-Type: application/json"${TOKEN ? ` \
   -H "Authorization: Bearer ${TOKEN}"` : ""}`;
-                console.info(`🔍 CURL equivalente (buscar reservas fixas):\n${curlCommand}`);
+                console.info(`🔍 CURL equivalente (buscar reservas fixas):
+${curlCommand}`);
             } catch (err) {
                 console.warn("Não foi possível montar CURL de debug para reservas fixas:", err);
             }
@@ -237,6 +231,7 @@ export default function ReservasFixasPage() {
     useEffect(() => {
         setEventsState(mapReservasParaEventos(reservasFixas));
     }, [reservasFixas]);
+
     const handleSalvarReservaFixa = async () => {
         if (!selectedUser || !selectedLab || !selectedSemestre) {
             setErrorMessage("Preencha todos os campos obrigatórios.");
@@ -253,12 +248,10 @@ export default function ReservasFixasPage() {
                 horaFim,
             };
 
-            // incluir disciplina apenas se houver seleção
             if (selectedDisciplina !== "" && selectedDisciplina !== undefined) {
                 body.disciplina = { id: selectedDisciplina };
             }
 
-            // Monta cURL equivalente para debug
             const curlCommand = [
                 `curl -X POST "${BASE_URL}/reserva/fixa"`,
                 `-H "Content-Type: application/json"`,
@@ -266,9 +259,10 @@ export default function ReservasFixasPage() {
                 `-d '${JSON.stringify(body, null, 2)}'`
             ]
                 .filter(Boolean)
-                .join(" \\\n  ");
+                .join(" \
+  ");
 
-            console.log("🌀 cURL equivalente para cadastro da reserva fixa:\n", curlCommand);
+            console.log("🌀 cURL equivalente para cadastro da reserva fixa:", curlCommand);
 
             const res = await fetch(`${BASE_URL}/reserva/fixa`, {
                 method: "POST",
@@ -287,11 +281,9 @@ export default function ReservasFixasPage() {
                 return;
             }
 
-            // Optimistic: adiciona a reserva retornada imediatamente (se backend retornou o recurso)
             if (data && data.id) {
                 setReservasFixas((prev) => {
                     const next = [data, ...prev];
-                    // atualiza events state com o novo array
                     setEventsState(mapReservasParaEventos(next));
                     return next;
                 });
@@ -300,12 +292,7 @@ export default function ReservasFixasPage() {
             setOpenDialogCadastro(false);
             resetCadastroDialog();
 
-            // Recarrega todas as reservas do laboratório que está selecionado
-            try {
-                await fetchTodasReservasFixas(selectedLab);
-            } catch (e) {
-                console.warn("Erro ao recarregar reservas após criação:", e);
-            }
+            try { await fetchTodasReservasFixas(selectedLab); } catch (e) { console.warn("Erro ao recarregar reservas após criação:", e); }
 
         } catch (err) {
             console.error(err);
@@ -313,7 +300,6 @@ export default function ReservasFixasPage() {
         }
     };
 
-    // Ao cancelar, faz a requisição de novo para o mesmo laboratório que estava selecionado
     const handleCancelarFixa = async (id?: number) => {
         if (!id) return;
         if (!TOKEN) {
@@ -321,7 +307,6 @@ export default function ReservasFixasPage() {
             return;
         }
 
-        // captura o laboratório selecionado no momento do clique (pode ser "" quando nenhum selecionado)
         const labNoMomento = selectedLab;
 
         setLoading(true);
@@ -342,16 +327,10 @@ export default function ReservasFixasPage() {
                 return;
             }
 
-            // sucesso: fecha o dialog
             setOpenDialogDetalhes(false);
             setSelectedReserva(null);
 
-            // RECARREGA reservas
-            try {
-                await fetchTodasReservasFixas(labNoMomento);
-            } catch (e) {
-                console.warn("Erro ao recarregar reservas após cancelar:", e);
-            }
+            try { await fetchTodasReservasFixas(labNoMomento); } catch (e) { console.warn("Erro ao recarregar reservas após cancelar:", e); }
 
         } catch (err) {
             console.error("Erro ao cancelar reserva fixa:", err);
@@ -361,14 +340,94 @@ export default function ReservasFixasPage() {
         }
     };
 
+    // Long-press refs e estado do popup (posição + cor)
+    const longPressTimeouts = useRef<Record<string, number | null>>({});
+    const longPressFiredRef = useRef(false);
+    const [longPressPopup, setLongPressPopup] = useState<{ visible: boolean; nome?: string; x?: number | null; y?: number | null; color?: string | null }>({ visible: false, x: null, y: null, color: null });
+
+    useEffect(() => {
+        return () => {
+            Object.values(longPressTimeouts.current).forEach((t) => { if (t) window.clearTimeout(t); });
+        };
+    }, []);
+
+    const getContrastColor = (hex?: string | null) => {
+        if (!hex) return '#fff';
+        const h = hex.replace('#', '').slice(0, 6);
+        const r = parseInt(h.substring(0, 2), 16);
+        const g = parseInt(h.substring(2, 4), 16);
+        const b = parseInt(h.substring(4, 6), 16);
+        const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        return luminance > 0.6 ? '#000' : '#fff';
+    };
+
     const renderEventContent = (eventInfo: any) => {
         const { event } = eventInfo;
         const startHour = event.startTime ?? "";
         const endHour = event.endTime ?? "";
         const bgColor = event.backgroundColor ?? "#6366f1";
+        const reserva: ReservaFixa | undefined = event.extendedProps?.reserva;
+
+        const uniqueId = event.id ?? `ev-${reserva?.id ?? Math.random()}`;
+
+        const openAnchoredPopup = (clientX: number, clientY: number) => {
+            const OFFSET = 8;
+            let x = clientX;
+            let y = clientY - OFFSET;
+            const vw = window.innerWidth;
+            const popupWidth = 220;
+            const popupHeight = 72;
+
+            if (x + popupWidth / 2 > vw) x = vw - popupWidth / 2 - 8;
+            if (x - popupWidth / 2 < 0) x = popupWidth / 2 + 8;
+            if (y - popupHeight < 8) { y = clientY + OFFSET + popupHeight / 2; }
+
+            setLongPressPopup({ visible: true, nome: reserva?.usuario?.nome ?? event.title, x, y, color: bgColor });
+            window.setTimeout(() => setLongPressPopup((s) => ({ ...s, visible: false })), 2500);
+            longPressFiredRef.current = true;
+            window.setTimeout(() => { longPressFiredRef.current = false; }, 120);
+        };
+
+        const onTouchStart = (e: React.TouchEvent) => {
+            if (!reserva) return;
+            const touch = e.touches && e.touches[0];
+            const startX = touch ? touch.clientX : 0;
+            const startY = touch ? touch.clientY : 0;
+            const t = window.setTimeout(() => { openAnchoredPopup(startX, startY); longPressTimeouts.current[uniqueId] = null; }, 600);
+            longPressTimeouts.current[uniqueId] = t;
+        };
+
+        const clearTouchTimeout = () => { const t = longPressTimeouts.current[uniqueId]; if (t) { window.clearTimeout(t); longPressTimeouts.current[uniqueId] = null; } };
+        const onTouchEnd = clearTouchTimeout;
+        const onTouchCancel = clearTouchTimeout;
+
+        const onMouseDown = (e: React.MouseEvent) => { if (!reserva) return; const startX = e.clientX; const startY = e.clientY; const t = window.setTimeout(() => { openAnchoredPopup(startX, startY); longPressTimeouts.current[uniqueId] = null; }, 700); longPressTimeouts.current[uniqueId] = t; };
+        const onMouseUp = () => { const t = longPressTimeouts.current[uniqueId]; if (t) { window.clearTimeout(t); longPressTimeouts.current[uniqueId] = null; } };
+
+        if (isMobile) {
+            return (
+                <div
+                    role="button"
+                    aria-label={event.title}
+                    className="w-full h-8 rounded-lg"
+                    style={{ backgroundColor: bgColor }}
+                    onTouchStart={onTouchStart}
+                    onTouchEnd={onTouchEnd}
+                    onTouchCancel={onTouchCancel}
+                />
+            );
+        }
 
         return (
-            <div className="w-full block rounded-lg px-2 py-1 text-white flex flex-col shadow-md" style={{ backgroundColor: bgColor }}>
+            <div
+                className="w-full block rounded-lg px-2 py-1 text-white flex flex-col shadow-md"
+                style={{ backgroundColor: bgColor }}
+                onTouchStart={onTouchStart}
+                onTouchEnd={onTouchEnd}
+                onTouchCancel={onTouchCancel}
+                onMouseDown={onMouseDown}
+                onMouseUp={onMouseUp}
+            >
                 <span className="text-[11px] font-semibold">{startHour}{endHour ? ` - ${endHour}` : ""}</span>
                 <span className="text-[12px] truncate">{event.title}</span>
             </div>
@@ -376,6 +435,11 @@ export default function ReservasFixasPage() {
     };
 
     const handleEventClick = async (clickInfo: any) => {
+        if (longPressFiredRef.current) {
+            longPressFiredRef.current = false;
+            return;
+        }
+
         const ext = clickInfo.event.extendedProps;
         let reserva: ReservaFixa | null = ext && ext.reserva ? (ext.reserva as ReservaFixa) : null;
 
@@ -390,10 +454,8 @@ export default function ReservasFixasPage() {
                         const data = text ? JSON.parse(text) : null;
                         if (data) {
                             reserva = data;
-                            // atualiza lista local de reservasFixas com os dados completos (para próxima vez já vir com disciplina)
                             setReservasFixas((prev) => {
                                 const next = prev.map((r) => (r.id === reserva!.id ? reserva! : r));
-                                // atualiza eventos também
                                 setEventsState(mapReservasParaEventos(next));
                                 return next;
                             });
@@ -455,7 +517,15 @@ export default function ReservasFixasPage() {
                 </main>
             </div>
 
-            {/* Dialog de cadastro */}
+            {longPressPopup.visible && longPressPopup.x != null && longPressPopup.y != null && (
+                <div
+                    className="fixed z-50 rounded-xl shadow-lg px-4 py-2 border"
+                    style={{ left: longPressPopup.x, top: longPressPopup.y, transform: 'translate(-50%, -100%)', backgroundColor: longPressPopup.color || '#fff', borderColor: 'rgba(0,0,0,0.08)' }}
+                >
+                    <div style={{ color: getContrastColor(longPressPopup.color), fontWeight: 600 }}>{longPressPopup.nome}</div>
+                </div>
+            )}
+
             <Dialog open={openDialogCadastro} onOpenChange={(open) => { setOpenDialogCadastro(open); if (!open) resetCadastroDialog(); }}>
                 <DialogContent className="max-w-md rounded-xl">
                     <DialogHeader>
@@ -467,7 +537,6 @@ export default function ReservasFixasPage() {
                                     {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.nome}</option>))}
                                 </select>
 
-                                {/* Disciplina (opcional) — pega disciplinas do usuário selecionado */}
                                 <div>
                                     <label className="text-sm font-medium text-gray-700 mb-1 block">Disciplina (opcional)</label>
                                     <select
@@ -484,7 +553,6 @@ export default function ReservasFixasPage() {
                                     <p className="text-xs text-gray-500 mt-1">Se o usuário tiver disciplinas cadastradas, selecione para associar (opcional).</p>
                                 </div>
 
-                                {/* se encontramos um semestre pela data atual, mostramos apenas essa opção e desabilitamos o select */}
                                 {semestreEncontrado ? (
                                     <select className="border rounded-lg px-3 py-2 w-full bg-gray-100 cursor-not-allowed" value={selectedSemestre} disabled>
                                         <option value="">{semestreEncontrado.descricao || `${semestreEncontrado.dataInicio} - ${semestreEncontrado.dataFim}`}</option>
@@ -520,7 +588,6 @@ export default function ReservasFixasPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* DIALOG DE DETALHES: abre ao clicar na reserva */}
             <Dialog open={openDialogDetalhes} onOpenChange={(open) => setOpenDialogDetalhes(open)}>
                 <DialogContent className="max-w-md rounded-xl">
                     <DialogHeader>
@@ -564,6 +631,18 @@ export default function ReservasFixasPage() {
             </Dialog>
 
             <ErrorAlert message={errorMessage} onClose={() => setErrorMessage("")} />
+
+            <style jsx>{`
+                .fc .fc-toolbar-title { font-weight: 700; font-size: 1.25rem; }
+                @media (max-width: 640px) {
+                    .fc .fc-toolbar-title { font-size: 1rem; line-height: 1.1; }
+                    .fc .fc-toolbar-chunk { gap: 0.25rem; display: flex; align-items: center; flex-wrap: nowrap; }
+                    .fc .fc-button { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+                    .fc .fc-col-header-cell-cushion { font-size: 0.72rem; }
+                    .fc .fc-daygrid-day-top { font-size: 0.72rem; }
+                    .fc .fc-scroller { -webkit-overflow-scrolling: touch; }
+                }
+            `}</style>
         </div>
     );
 }
