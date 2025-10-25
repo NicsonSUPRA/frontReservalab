@@ -165,8 +165,16 @@ export default function ReservasPage() {
         if (!Array.isArray(lista)) return [];
         return lista.flatMap((reserva) => {
             const isReservaFixa = reserva.tipo === "FIXA";
-            const color: string = (isReservaFixa && reserva.status === null) ? "#22c55e" : reserva.status === "CONFIRMADA" ? "#0c92b4ff" : reserva.status === "APROVADA" ? "#16a34a" : reserva.status === "PENDENTE" ? "#f59e0b" : "#3537c2ff";
-
+            const color: string =
+                (isReservaFixa && reserva.status === null)
+                    ? "#38bdf8" // Azul-céu → reserva fixa
+                    : reserva.status === "CONFIRMADA"
+                        ? "#22c55e" // Verde → confirmado
+                        : reserva.status === "APROVADA"
+                            ? "#86efac" // Verde claro → aprovado
+                            : reserva.status === "PENDENTE"
+                                ? "#fbbf24" // Amarelo → pendente
+                                : "#9ca3af"; // Cinza → outro / desconhecido
             const outputs: EventInput[] = [];
             if (!reserva.dataInicio && reserva.diaSemana !== null && reserva.horaInicio) {
                 const dayForFullCalendar = Number(reserva.diaSemana) % 7;
@@ -312,6 +320,14 @@ export default function ReservasPage() {
         );
     };
 
+    const legendItems = [
+        { key: 'fixa', label: 'Reserva fixa (recorrente)', color: '#38bdf8' },
+        { key: 'confirmada', label: 'Confirmada', color: '#22c55e' },
+        { key: 'aprovada', label: 'Aprovada', color: '#86efac' },
+        { key: 'pendente', label: 'Pendente', color: '#fbbf24' },
+        // { key: 'outro', label: 'Outro / Desconhecido', color: '#9ca3af' },
+    ];
+
     return (
         <div className="flex min-h-screen bg-gray-50">
             <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
@@ -332,6 +348,18 @@ export default function ReservasPage() {
                         </div>
 
                         <div className="w-full overflow-hidden">
+                            <div className="flex flex-wrap items-center gap-3 mb-3">
+                                {legendItems.map((it) => (
+                                    <div key={it.key} className="flex items-center gap-2 text-sm" aria-hidden={false}>
+                                        <span
+                                            className="w-3 h-3 rounded-full border"
+                                            style={{ backgroundColor: it.color, borderColor: 'rgba(0,0,0,0.08)' }}
+                                        />
+                                        <span className="text-gray-700">{it.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+
                             <FullCalendar
                                 ref={calendarRef}
                                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}

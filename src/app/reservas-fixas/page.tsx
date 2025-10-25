@@ -213,7 +213,7 @@ ${curlCommand}`);
                 horaFi = dtFim.toTimeString().slice(0, 5);
             }
 
-            const color = reserva.status === "APROVADA" ? "#16a34a" : "#22c55e";
+            const color = reserva.status === "APROVADA" ? "#16a34a" : "#38bdf8";
 
             return {
                 id: `fixa-${reserva.id}`,
