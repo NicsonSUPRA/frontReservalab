@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Sidebar from "../../components/Sidebar"
+import Header from "../../components/Header";
 
 // Função para decodificar JWT
 function parseJwt(token: string | null) {
@@ -172,6 +173,7 @@ export default function LaboratorioPage() {
             <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
             <div className="flex-1 flex flex-col min-h-screen">
+                <Header titulo={editando ? "Editar Laboratório" : "Visualizar Laboratório"} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
                 <header className="p-4 bg-white/70 backdrop-blur-lg md:hidden flex items-center shadow-lg sticky top-0 z-10 border-b border-white/20">
                     <h1 className="ml-3 font-bold text-lg text-gray-800">Sistema de Reservas</h1>
                 </header>

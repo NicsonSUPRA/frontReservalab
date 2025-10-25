@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
+import Header from "../../components/Header";
 
 interface Semestre {
     id: string;
@@ -164,6 +165,7 @@ export default function SemestrePage() {
         <div className="flex min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100 text-gray-800">
             <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
             <div className="flex-1 flex flex-col min-h-screen">
+                <Header titulo={editando ? "Editar Semestre" : "Visualizar Semestre"} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
                 <main className="flex-1 p-4 lg:p-8 xl:p-12">
                     <div className="max-w-4xl mx-auto space-y-8">
                         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 p-6 bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20">

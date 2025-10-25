@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
+import Header from "../../components/Header";
 
 interface Laboratorio {
     id: string;
@@ -87,10 +88,10 @@ export default function PesquisarLaboratorios() {
 
             {/* Conteúdo principal */}
             <div className="flex-1 flex flex-col min-h-screen">
+                <Header titulo="Pesquisar Laboratório" sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
                 {/* Top gradient header */}
-                <div className="bg-gradient-to-r from-indigo-600 via-sky-500 to-indigo-500 text-white py-5 px-4 sm:px-6 flex items-center justify-between shadow-lg">
+                {/* <div className="bg-gradient-to-r from-indigo-600 via-sky-500 to-indigo-500 text-white py-5 px-4 sm:px-6 flex items-center justify-between shadow-lg">
                     <div className="flex items-center gap-4">
-                        {/* Toggle: aparece em telas menores */}
                         <button
                             onClick={() => setSidebarOpen(!sidebarOpen)}
                             className="md:hidden p-2 rounded-md bg-white/20 hover:bg-white/30 transition"
@@ -111,7 +112,7 @@ export default function PesquisarLaboratorios() {
                         <div className="text-xs text-indigo-100">Dica:</div>
                         <div className="px-3 py-2 rounded-full bg-white/10 text-sm">Use filtros para refinar resultados</div>
                     </div>
-                </div>
+                </div> */}
 
                 <main className="flex-1 p-4 sm:p-6 md:p-8 w-full">
                     <div className="max-w-4xl mx-auto space-y-6">
