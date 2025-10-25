@@ -5,6 +5,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
+import Header from "../../components/Header";
 
 interface Disciplina {
     id?: number;
@@ -280,14 +281,7 @@ export default function UsuarioPage() {
             <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
             <div className="flex-1 flex flex-col min-h-screen">
-                <header className="p-4 bg-white/70 backdrop-blur-lg md:hidden flex items-center shadow-lg sticky top-0 z-10 border-b border-white/20">
-                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-violet-600 hover:text-violet-700 hover:bg-violet-50 p-2 rounded-xl transition-colors">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                    </button>
-                    <h1 className="ml-3 font-bold text-lg text-gray-800">Sistema de Reservas</h1>
-                </header>
+                <Header titulo={editando ? "Editar Usuário" : "Visualizar Usuário"} sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
                 <main className="flex-1 p-4 lg:p-8 xl:p-12 overflow-x-hidden">
                     <div className="max-w-5xl mx-auto space-y-8">

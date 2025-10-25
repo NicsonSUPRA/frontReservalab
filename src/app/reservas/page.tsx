@@ -8,6 +8,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import ptBrLocale from '@fullcalendar/core/locales/pt-br';
 import Sidebar from "../components/Sidebar";
+import Header from "../components/Header";
 
 import {
     Dialog,
@@ -317,16 +318,7 @@ export default function ReservasPage() {
             {sidebarOpen && <div className="fixed inset-0 bg-black/30 z-40 md:hidden" onClick={() => setSidebarOpen(false)} aria-hidden />}
 
             <div className="flex-1 flex flex-col min-h-screen">
-                <div className="bg-gradient-to-r from-indigo-600 via-sky-500 to-indigo-500 text-white py-4 px-4 sm:px-6 flex items-center justify-between shadow-lg">
-                    <div className="flex items-center gap-3">
-                        <button type="button" className="md:hidden p-2 rounded-md hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white" onClick={() => setSidebarOpen(true)} aria-label="Abrir menu">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
-                            </svg>
-                        </button>
-                        <h1 className="text-lg sm:text-xl font-semibold">Calendário de Reservas</h1>
-                    </div>
-                </div>
+                <Header titulo="Calendário de Reservas" sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
                 <main className="flex-1 p-3 sm:p-6 md:p-8 w-full">
                     <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100 overflow-hidden">
