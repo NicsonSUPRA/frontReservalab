@@ -235,7 +235,27 @@ export default function ReservasPage() {
 
     const handleConfirmarReservaFixa = async () => { if (!selectedReserva) return; try { const dateToSend = dataSelecionada || (selectedReserva.dataInicio ? selectedReserva.dataInicio.split("T")[0] : null); const body = { reservaFixaId: selectedReserva.id, data: dateToSend, tipo: "CONFIRMADA", motivo: "Confirmação via Front" }; setLoading(true); const res = await fetch(`${BASE_URL}/reserva/fixa/excecao/confirmar`, { method: "POST", headers: { "Authorization": `Bearer ${TOKEN}`, "Content-Type": "application/json" }, body: JSON.stringify(body) }); if (!res.ok) { let errMsg = "Erro ao confirmar reserva fixa"; try { const text = await res.text(); const data = text ? JSON.parse(text) : null; errMsg = data?.message || data?.error || errMsg; } catch { } setErrorMessage(errMsg); return; } if (selectedReserva.laboratorio?.id) fetchReservasPorLab(selectedReserva.laboratorio.id); setSelectedReserva(null); setOpenDialogDetalhes(false); } catch (err) { console.error("Erro ao confirmar reserva fixa", err); setErrorMessage("Erro ao confirmar reserva fixa"); } finally { setLoading(false); } };
 
-    const handleAprovarReserva = async () => { if (!selectedReserva) return; try { const res = await fetch(`${BASE_URL}/reserva/${selectedReserva.id}/aprovar`, { method: "PUT", headers: { "Authorization": `Bearer ${TOKEN}`, "Content-Type": "application/json" } }); if (!res.ok) { let errMsg = "Erro ao aprovar reserva"; try { const text = await res.text(); const data = text ? JSON.parse(text) : null; errMsg = data?.message || data?.error || errMsg; } catch { } setErrorMessage(errMsg); return; } if (selectedReserva.laboratorio?.id) fetchReservasPorLab(selectedReserva.laboratorio.id); setSelectedReserva(null); setOpenDialogDetalhes(false); } catch (err) { console.error("Erro ao aprovar reserva", err); setErrorMessage("Erro ao aprovar reserva"); } };
+    const handleAprovarReserva = async () => {
+        if (!selectedReserva) return;
+        try {
+            setLoading(true);
+            const res = await fetch(`${BASE_URL}/reserva/${selectedReserva.id}/aprovar`, { method: "PUT", headers: { "Authorization": `Bearer ${TOKEN}`, "Content-Type": "application/json" } });
+            if (!res.ok) {
+                let errMsg = "Erro ao aprovar reserva";
+                try { const text = await res.text(); const data = text ? JSON.parse(text) : null; errMsg = data?.message || data?.error || errMsg; } catch { }
+                setErrorMessage(errMsg);
+                return;
+            }
+            if (selectedReserva.laboratorio?.id) fetchReservasPorLab(selectedReserva.laboratorio.id);
+            setSelectedReserva(null);
+            setOpenDialogDetalhes(false);
+        } catch (err) {
+            console.error("Erro ao aprovar reserva", err);
+            setErrorMessage("Erro ao aprovar reserva");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     function podeCancelar(reserva: Reserva | null): boolean { if (!reserva) return false; const decoded = parseJwt(TOKEN); const userRoles = decoded?.roles || decoded?.authorities || []; const userLogin = decoded?.sub; const isAdmin = userRoles.some((r: string) => r.toUpperCase() === "ADMIN"); const isProf = userRoles.some((r: string) => r.toUpperCase() === "PROF"); const isProfComp = userRoles.some((r: string) => r.toUpperCase() === "PROF_COMP"); if (isAdmin) return true; const reservaUser = reserva.usuario; if (!reservaUser) return false; const reservaRoles = reservaUser.roles?.map((r) => r.toUpperCase()) || []; if (isProf) return reservaUser.login === userLogin; if (isProfComp) return reservaRoles.includes("PROF_COMP") || reservaRoles.includes("PROF"); return false; }
 
@@ -343,8 +363,20 @@ export default function ReservasPage() {
                                 <option value="">Selecione um laboratório</option>
                                 {laboratorios.map((l) => (<option key={l.id} value={l.id}>{l.nome}</option>))}
                             </select>
-                            <Button className="sm:w-auto" onClick={() => { if (!selectedLab) setErrorMessage("Selecione um laboratório."); else fetchReservasPorLab(selectedLab); }}>Pesquisar</Button>
-                            {loading && <span className="text-gray-500 ml-auto">Carregando reservas...</span>}
+                            <Button className="sm:w-auto" onClick={() => { if (!selectedLab) setErrorMessage("Selecione um laboratório."); else fetchReservasPorLab(selectedLab); }} disabled={loading}>
+                                {loading ? (
+                                    <span className="flex items-center gap-2">
+                                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden>
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                        </svg>
+                                        Carregando...
+                                    </span>
+                                ) : (
+                                    "Pesquisar"
+                                )}
+                            </Button>
+                            {loading && <span className="text-gray-500 ml-auto flex items-center gap-2"><svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>Carregando reservas...</span>}
                         </div>
 
                         <div className="w-full overflow-hidden">
@@ -423,7 +455,25 @@ export default function ReservasPage() {
                             {(roles.includes("ADMIN") || roles.includes("PROF_COMP")) && selectedReserva?.tipo === "FIXA" && getDisplayStatus() !== "CONFIRMADA" && (
                                 <Button onClick={handleConfirmarReservaFixa} disabled={loading} className="bg-violet-300 hover:bg-violet-400 text-white">{loading ? "Processando..." : "Confirmar utilização"}</Button>
                             )}
-                            {roles.includes("ADMIN") && selectedReserva?.tipo === "NORMAL" && selectedReserva?.status !== "APROVADA" && (<Button variant="secondary" onClick={handleAprovarReserva}>Aprovar Reserva</Button>)}
+                            {roles.includes("ADMIN") && selectedReserva?.tipo === "NORMAL" && selectedReserva?.status !== "APROVADA" && (
+                                <Button
+                                    variant="secondary"
+                                    onClick={handleAprovarReserva}
+                                    disabled={loading}
+                                >
+                                    {loading ? (
+                                        <span className="flex items-center gap-2">
+                                            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden>
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                            </svg>
+                                            Processando...
+                                        </span>
+                                    ) : (
+                                        "Aprovar Reserva"
+                                    )}
+                                </Button>
+                            )}
                         </div>
                     </DialogFooter>
                 </DialogContent>
