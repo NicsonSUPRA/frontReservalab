@@ -156,14 +156,31 @@ export default function Header({ titulo, sidebarOpen, setSidebarOpen }: HeaderPr
         setShowLogoutDialog(true);
     };
 
+    const clearTokenCookie = () => {
+        if (typeof document === "undefined") return;
+
+        const expires = "Thu, 01 Jan 1970 00:00:00 GMT";
+
+        // remove cookie com domain correto
+        document.cookie = `token=; Path=/; Domain=.reservalab.digital; Expires=${expires}; Secure; SameSite=None`;
+
+        // fallback sem domain (para localhost/dev)
+        document.cookie = `token=; Path=/; Expires=${expires}; Secure; SameSite=None`;
+    }
+
+
     const doLogout = () => {
-        // limpa token/login e redireciona pra tela de login
-        if (typeof window !== "undefined") {
-            localStorage.removeItem("token");
-            localStorage.removeItem("login");
-        }
+        // remove token e login do localStorage
+        localStorage.removeItem("token");
+        localStorage.removeItem("login");
+
+        // remove cookie
+        clearTokenCookie();
+
         setShowLogoutDialog(false);
         setMenuOpen(false);
+
+        // redireciona para login
         router.push("/login");
     };
 
