@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FaUser, FaHome, FaDesktop } from "react-icons/fa"
+import { FaUser, FaHome, FaDesktop, FaRegChartBar } from "react-icons/fa"
 import { IoIosArrowDown } from "react-icons/io"
 import { PiCalendarBlankFill } from "react-icons/pi"
 import Link from "next/link"
@@ -47,6 +47,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
     const canAccessUsers = role && !restrictedRoles.includes(role)
     const canCadastrar = role && !restrictedRoles.includes(role)
     const canViewReservasFixas = role && rolesForReservasFixas.includes(role)
+    const canViewDashboard = role === "ADMIN"
 
     return (
         <aside
@@ -72,6 +73,23 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
             </div>
 
             <ul className="space-y-3">
+
+                {/* Dashboard (apenas ADMIN) */}
+                {canViewDashboard && (
+                    <li>
+                        <Link
+                            href="/dashboard"
+                            onClick={() => setSidebarOpen(false)}
+                            className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg border border-blue-200 shadow-sm
+                        bg-white text-gray-700 hover:bg-blue-600 hover:text-white hover:shadow-md
+                        transition-all duration-200 font-semibold ${pathname === "/dashboard" ? "bg-blue-600 shadow" : ""}`}
+                        >
+                            <FaRegChartBar className="text-blue-600 group-hover:text-white transition-colors duration-200" />
+                            Dashboard
+                        </Link>
+                    </li>
+                )}
+
                 {/* Usuários - somente para roles permitidas */}
                 {canAccessUsers && (
                     <li>
@@ -237,7 +255,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
                 </li>
 
                 {/* Reservas */}
-                <li>
+                {/* <li>
                     <Link
                         href="/reservas"
                         onClick={() => setSidebarOpen(false)}
@@ -248,7 +266,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }: SidebarProps) {
                         <PiCalendarBlankFill className="text-blue-600 group-hover:text-white transition-colors duration-200" />
                         Reservas
                     </Link>
-                </li>
+                </li> */}
 
                 {/* Reservas Fixas — somente para ADMIN */}
                 {canViewReservasFixas && (
