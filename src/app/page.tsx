@@ -167,22 +167,40 @@ export default function ReservasPage() {
       const isReservaFixa = reserva.tipo === "FIXA";
       const color: string =
         (isReservaFixa && reserva.status === null)
-          ? "#38bdf8" // Azul-céu → reserva fixa
+          ? "#38bdf8"
           : reserva.status === "CONFIRMADA"
-            ? "#22c55e" // Verde → confirmado
+            ? "#22c55e"
             : reserva.status === "APROVADA"
-              ? "#86efac" // Verde claro → aprovado
+              ? "#86efac"
               : reserva.status === "PENDENTE"
-                ? "#fbbf24" // Amarelo → pendente
-                : "#9ca3af"; // Cinza → outro / desconhecido
+                ? "#fbbf24"
+                : "#9ca3af";
       const outputs: EventInput[] = [];
       if (!reserva.dataInicio && reserva.diaSemana !== null && reserva.horaInicio) {
         const dayForFullCalendar = Number(reserva.diaSemana) % 7;
-        outputs.push({ id: `fixa-${reserva.id}`, title: `${reserva.usuario?.nome ?? "Usuário"} — ${reserva.laboratorio?.nome ?? "Lab"}`, daysOfWeek: [dayForFullCalendar], startTime: reserva.horaInicio!, endTime: reserva.horaFim ?? undefined, backgroundColor: color, borderColor: color, allDay: false, extendedProps: { reserva } });
+        outputs.push({
+          id: `fixa-${reserva.id}`,
+          title: `${reserva.usuario?.nome ?? "Usuário"} — ${reserva.laboratorio?.nome ?? "Lab"}`,
+          daysOfWeek: [dayForFullCalendar],
+          startTime: reserva.horaInicio!,
+          endTime: reserva.horaFim ?? undefined,
+          backgroundColor: color,
+          borderColor: color,
+          allDay: false,
+          extendedProps: { reserva }
+        });
       }
       if (reserva.dataInicio) {
         const safeIso = encodeURIComponent(new Date(reserva.dataInicio).toISOString());
-        outputs.push({ id: `normal-${reserva.id}-${safeIso}`, title: `${reserva.usuario?.nome ?? "Usuário"} — ${reserva.laboratorio?.nome ?? "Lab"}`, start: reserva.dataInicio, end: reserva.dataFim ?? undefined, backgroundColor: color, borderColor: color, extendedProps: { reserva } });
+        outputs.push({
+          id: `normal-${reserva.id}-${safeIso}`,
+          title: `${reserva.usuario?.nome ?? "Usuário"} — ${reserva.laboratorio?.nome ?? "Lab"}`,
+          start: reserva.dataInicio,
+          end: reserva.dataFim ?? undefined,
+          backgroundColor: color,
+          borderColor: color,
+          extendedProps: { reserva }
+        });
       }
       return outputs;
     });
@@ -192,7 +210,6 @@ export default function ReservasPage() {
 
   const longPressTimeouts = useRef<Record<string, number | null>>({});
   const longPressFiredRef = useRef(false);
-  // Alterado: estado do popup agora guarda posição e cor (só o necessário)
   const [longPressPopup, setLongPressPopup] = useState<{ visible: boolean; nome?: string; x?: number | null; y?: number | null; color?: string | null }>({ visible: false, x: null, y: null, color: null });
 
   useEffect(() => { return () => { Object.values(longPressTimeouts.current).forEach((t) => { if (t) window.clearTimeout(t); }); }; }, []);
@@ -345,7 +362,6 @@ export default function ReservasPage() {
     { key: 'confirmada', label: 'Confirmada', color: '#22c55e' },
     { key: 'aprovada', label: 'Aprovada', color: '#86efac' },
     { key: 'pendente', label: 'Pendente', color: '#fbbf24' },
-    // { key: 'outro', label: 'Outro / Desconhecido', color: '#9ca3af' },
   ];
 
   return (
@@ -359,11 +375,15 @@ export default function ReservasPage() {
         <main className="flex-1 p-3 sm:p-6 md:p-8 w-full">
           <div className="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl p-4 sm:p-6 border border-gray-100 overflow-hidden">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
-              <select className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedLab} onChange={(e) => setSelectedLab(e.target.value === "" ? "" : Number(e.target.value))}>
+              <select className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" value={selectedLab} onChange={(e) => setSelectedLab(e.target.value === "" ? "" : Number(e.target.value))}>
                 <option value="">Selecione um laboratório</option>
                 {laboratorios.map((l) => (<option key={l.id} value={l.id}>{l.nome}</option>))}
               </select>
-              <Button className="sm:w-auto" onClick={() => { if (!selectedLab) setErrorMessage("Selecione um laboratório."); else fetchReservasPorLab(selectedLab); }} disabled={loading}>
+              <Button
+                className="sm:w-auto px-3 py-1.5 sm:px-4 sm:py-2 text-sm sm:text-base"
+                onClick={() => { if (!selectedLab) setErrorMessage("Selecione um laboratório."); else fetchReservasPorLab(selectedLab); }}
+                disabled={loading}
+              >
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden>
@@ -376,18 +396,18 @@ export default function ReservasPage() {
                   "Pesquisar"
                 )}
               </Button>
-              {loading && <span className="text-gray-500 ml-auto flex items-center gap-2"><svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>Carregando reservas...</span>}
+              {loading && <span className="text-gray-500 ml-auto flex items-center gap-2 text-xs sm:text-sm"><svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>Carregando reservas...</span>}
             </div>
 
             <div className="w-full overflow-hidden">
-              <div className="flex flex-wrap items-center gap-3 mb-3">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
                 {legendItems.map((it) => (
-                  <div key={it.key} className="flex items-center gap-2 text-sm" aria-hidden={false}>
+                  <div key={it.key} className="flex items-center gap-2 text-xs sm:text-sm" aria-hidden={false}>
                     <span
-                      className="w-3 h-3 rounded-full border"
+                      className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border"
                       style={{ backgroundColor: it.color, borderColor: 'rgba(0,0,0,0.08)' }}
                     />
-                    <span className="text-gray-700">{it.label}</span>
+                    <span className="text-gray-700 truncate">{it.label}</span>
                   </div>
                 ))}
               </div>
@@ -410,7 +430,7 @@ export default function ReservasPage() {
                 slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
                 eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
                 allDaySlot={false}
-                height={isMobile ? "60vh" : "80vh"}
+                height={isMobile ? "55vh" : "80vh"}
               />
             </div>
 
@@ -420,10 +440,10 @@ export default function ReservasPage() {
 
       {longPressPopup.visible && longPressPopup.x != null && longPressPopup.y != null && (
         <div
-          className="fixed z-50 rounded-xl shadow-lg px-4 py-2 border"
+          className="fixed z-50 rounded-xl shadow-lg px-3 py-1 border"
           style={{ left: longPressPopup.x, top: longPressPopup.y, transform: 'translate(-50%, -100%)', backgroundColor: longPressPopup.color || '#fff', borderColor: 'rgba(0,0,0,0.08)' }}
         >
-          <div style={{ color: getContrastColor(longPressPopup.color), fontWeight: 600 }}>{longPressPopup.nome}</div>
+          <div style={{ color: getContrastColor(longPressPopup.color), fontWeight: 600, fontSize: 12 }}>{longPressPopup.nome}</div>
         </div>
       )}
 
@@ -486,32 +506,28 @@ export default function ReservasPage() {
               <DialogTitle>Nova Reserva</DialogTitle>
               <DialogDescription asChild>
                 <div className="space-y-3 mt-2">
-                  {dataSelecionada && <div className="p-2 bg-gray-100 rounded">Data selecionada: {dataSelecionada}</div>}
+                  {dataSelecionada && <div className="p-2 bg-gray-100 rounded text-sm">Data selecionada: {dataSelecionada}</div>}
                   <div className="flex gap-2">
                     <input type="time" className="border rounded-lg px-3 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} />
                     <input type="time" className="border rounded-lg px-3 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500" value={horaFim} onChange={(e) => setHoraFim(e.target.value)} />
                   </div>
-                  <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} required aria-required="true">
+                  <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" value={selectedUser} onChange={(e) => setSelectedUser(e.target.value)} required aria-required="true">
                     <option value="">Selecione o usuário</option>
                     {usuarios.map((u) => (<option key={u.id} value={u.id}>{u.nome}</option>))}
                   </select>
                   <div>
                     <label className="text-sm font-medium text-gray-700 mb-1">Disciplina (opcional)</label>
-                    <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedDisciplina} onChange={(e) => setSelectedDisciplina(e.target.value === "" ? "" : Number(e.target.value))} disabled={!selectedUser || disciplinasAtuais.length === 0}>
+                    <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" value={selectedDisciplina} onChange={(e) => setSelectedDisciplina(e.target.value === "" ? "" : Number(e.target.value))} disabled={!selectedUser || disciplinasAtuais.length === 0}>
                       <option value="">Nenhuma disciplina</option>
                       {disciplinasAtuais.map((d) => (<option key={d.id} value={d.id}>{d.nome}{d.descricao ? ` — ${d.descricao}` : ""}</option>))}
                     </select>
                     <p className="text-xs text-gray-500 mt-1">Opcional — associar a reserva a uma disciplina (se aplicável).</p>
                   </div>
-                  <select className="border rounded-lg px-3 py-2 w-full bg-gray-100 cursor-not-allowed" value={selectedLab} disabled>
+                  <select className="border rounded-lg px-3 py-2 w-full bg-gray-100 cursor-not-allowed text-sm" value={selectedLab} disabled>
                     <option value="">{selectedLab ? laboratorios.find((l) => l.id === selectedLab)?.nome || "Laboratório selecionado" : "Nenhum laboratório selecionado"}</option>
                   </select>
-                  <select className="border rounded-lg px-3 py-2 w-full bg-gray-100 cursor-not-allowed" value={selectedSemestre} disabled>
+                  <select className="border rounded-lg px-3 py-2 w-full bg-gray-100 cursor-not-allowed text-sm" value={selectedSemestre} disabled>
                     <option value="">{semestreEncontrado ? semestreEncontrado.descricao || `${semestreEncontrado.dataInicio} - ${semestreEncontrado.dataFim}` : (selectedSemestre ? semestres.find((s) => s.id === selectedSemestre)?.descricao || "Semestre selecionado" : "Nenhum semestre encontrado")}</option>
-                  </select>
-                  <select className="border rounded-lg px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-indigo-500" value={selectedSemestre} onChange={(e) => setSelectedSemestre(Number(e.target.value))} style={{ display: 'none' }}>
-                    <option value="">Selecione o semestre</option>
-                    {semestres.map((s) => (<option key={s.id} value={s.id}>{s.descricao}</option>))}
                   </select>
                 </div>
               </DialogDescription>
@@ -527,16 +543,87 @@ export default function ReservasPage() {
       <ErrorAlert message={errorMessage} onClose={() => setErrorMessage("")} />
 
       <style jsx>{`
-                .fc .fc-toolbar-title { font-weight: 700; font-size: 1.25rem; }
-                @media (max-width: 640px) {
-                    .fc .fc-toolbar-title { font-size: 1rem; line-height: 1.1; }
-                    .fc .fc-toolbar-chunk { gap: 0.25rem; display: flex; align-items: center; flex-wrap: nowrap; }
-                    .fc .fc-button { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
-                    .fc .fc-col-header-cell-cushion { font-size: 0.72rem; }
-                    .fc .fc-daygrid-day-top { font-size: 0.72rem; }
-                    .fc .fc-scroller { -webkit-overflow-scrolling: touch; }
-                }
-            `}</style>
+        /* Global overrides para FullCalendar (styled-jsx safe) */
+        :global(.fc .fc-toolbar-title) { font-weight: 700; font-size: 1.1rem; }
+
+        @media (max-width: 640px) {
+          /* título um pouco maior e com truncamento */
+          :global(.fc .fc-toolbar-title) {
+            font-size: 0.90rem !important;
+            line-height: 1 !important;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 70vw;
+            display: inline-block;
+            vertical-align: middle;
+          }
+
+          /* toolbar compacta, com gap levemente maior */
+          :global(.fc .fc-toolbar) {
+            padding: 0 !important;
+            margin: 0 !important;
+            display: flex !important;
+            gap: 0.20rem !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+          }
+
+          :global(.fc .fc-toolbar-chunk) {
+            gap: 0.16rem !important;
+            display: flex !important;
+            align-items: center !important;
+            flex-wrap: nowrap !important;
+          }
+
+          /* botões maiores que a versão ultra-compacta anterior, mas ainda mobile-friendly */
+          :global(.fc .fc-button) {
+            padding: 0.16rem 0.36rem !important;
+            font-size: 0.72rem !important;
+            min-width: 1.4rem !important;
+            height: 1.8rem !important;
+            line-height: 1 !important;
+            border-radius: 8px !important;
+            box-shadow: none !important;
+          }
+
+          /* ícones dentro dos botões */
+          :global(.fc .fc-button .fc-icon) {
+            font-size: 0.85rem !important;
+            vertical-align: middle !important;
+            display: inline-block !important;
+          }
+
+          :global(.fc .fc-button-group) { gap: 0.14rem !important; }
+
+          /* labels (dias / horários) um pouco maiores */
+          :global(.fc .fc-col-header-cell-cushion),
+          :global(.fc .fc-timegrid-axis-frame),
+          :global(.fc .fc-timegrid-slot-label) {
+            font-size: 0.76rem !important;
+            padding: 0.12rem 0.16rem !important;
+          }
+
+          /* eventos / células um pouco mais confortáveis */
+          :global(.fc .fc-timegrid-event) { font-size: 0.88rem !important; padding: 0.18rem !important; }
+          :global(.fc .fc-daygrid-day-top) { padding: 0.12rem 0.16rem !important; font-size: 0.80rem !important; }
+
+          :global(.fc) { margin-top: 0 !important; }
+          :global(.fc .fc-scroller) { -webkit-overflow-scrolling: touch; }
+
+          /* controles do formulário/letras do próprio app um pouco maiores no mobile */
+          :global(select), :global(.fc .fc-toolbar) { font-size: 0.95rem !important; }
+        }
+
+        /* telas bem pequenas */
+        @media (max-width: 420px) {
+          :global(.fc .fc-toolbar-title) { font-size: 0.82rem !important; max-width: 62vw; }
+          :global(.fc .fc-button) { padding: 0.12rem 0.30rem !important; font-size: 0.66rem !important; min-width: 1.2rem !important; height: 1.6rem !important; }
+          :global(.fc .fc-col-header-cell-cushion) { font-size: 0.72rem !important; }
+          :global(.fc .fc-timegrid-axis-frame) { font-size: 0.70rem !important; }
+        }
+      `}</style>
+
     </div>
   );
 }

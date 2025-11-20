@@ -32,7 +32,7 @@ export default function HomePage() {
             <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
             <div className="flex-1 flex flex-col min-h-screen">
-                <Header titulo="Bem vindo!" sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+                <Header titulo="Dashboard" sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
                 <main className="flex-1 p-6 md:p-8">
                     <div className="mb-6">
